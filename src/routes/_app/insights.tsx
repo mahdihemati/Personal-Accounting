@@ -36,7 +36,10 @@ function InsightsPage() {
   const query = useQuery({
     queryKey: key,
     queryFn: () => analyze({ data: { range } }),
-    staleTime: 60_000,
+    // Server cache handles freshness; avoid duplicate AI calls from refetches.
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     retry: false,
   });
   const refresh = useMutation({
