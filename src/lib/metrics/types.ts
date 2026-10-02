@@ -58,4 +58,7 @@ export type MetricsData = {
   alerts: AlertRow[];
   lessons?: { slug: string; status: string }[];
   completedSlugs?: string[];
+  assets?: import("./assets").AssetRow[];
+  prices?: import("./assets").PriceRow[];
+  integration?: import("./assets").IntegrationRow | null;
 };
