@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { FlaskConical, NotebookPen } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -61,6 +62,11 @@ function InsightsPage() {
           </Button>
         )}
       </header>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/simulator" className="flex items-center gap-2 rounded-2xl bg-card p-4 text-sm font-medium"><FlaskConical className="size-5 text-primary" />شبیه‌ساز «اگر...»</Link>
+        <Link to="/decisions" className="flex items-center gap-2 rounded-2xl bg-card p-4 text-sm font-medium"><NotebookPen className="size-5 text-primary" />دفتر تصمیم</Link>
+      </div>
 
       <div className="grid grid-cols-3 gap-1 rounded-2xl bg-card p-1">
         {RANGES.map((r) => (
