@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { GoogleGenAI, Modality, type LiveServerMessage, type FunctionResponse, type Session } from "@google/genai";
+import { EndSensitivity, GoogleGenAI, Modality, StartSensitivity, type LiveServerMessage, type FunctionResponse, type Session } from "@google/genai";
 import { format as gFormat } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { GEMINI_LIVE_API_VERSION, GEMINI_LIVE_MODEL, VOICE_SYSTEM_INSTRUCTION } from "@/lib/ai-config";
 import { getVoiceToken } from "@/lib/voice.functions";
 import { jDate } from "@/lib/format";
 import type { Account, Category } from "@/lib/data";
-import { TOOL_DECLARATIONS, VOICE_CONFIRM_MAX, buildBatch, runReadTool, soundsLikeConfirmation, type PendingBatch, type PendingTx, type ToolArgs } from "./tools";
+import { TOOL_DECLARATIONS, VOICE_CONFIRM_MAX, buildBatch, runReadTool, type PendingBatch, type PendingTx, type ToolArgs } from "./tools";
 import { METRIC_TOOL_DECLARATIONS, METRIC_TOOL_NAMES, runMetricTool } from "./metric-tools";
 
 export type VoiceStatus = "connecting" | "listening" | "speaking" | "error";
 
-const SILENCE_RMS = 0.012;
-const SILENCE_MS = 1000;
 
 function toBase64(int16: Int16Array) {
   const bytes = new Uint8Array(int16.buffer);
@@ -163,8 +161,8 @@ export function useVoiceSession() {
       return { ok: true, message: "ردیف حذف شد" };
     }
     // confirm_all
-    if (opts.byVoice && !soundsLikeConfirmation(s.heardSinceCard)) {
-      return { ok: false, message: "کاربر هنوز با صدای خودش تأیید نکرده؛ از او بخواه تأیید کند یا روی «ثبت همه» بزند." };
+    if (opts.byVoice) {
+      return { ok: false, message: "ثبت فقط با لمس دکمه‌ی «تأیید و ثبت» در پنجره انجام می‌شود؛ از کاربر بخواه روی آن بزند." };
     }
     if (b.items.some((p) => !p.amount || !p.accountId)) return { ok: false, message: "مبلغ یا حساب یکی از ردیف‌ها خالی است" };
     if (s.saving) return { ok: false, message: "در حال ثبت…" };
@@ -242,7 +240,6 @@ export function useVoiceSession() {
           } else if (c.name === "resolve_pending_transaction") {
             const action = (["confirm_all", "cancel_all", "remove_item"].includes(String(args.action)) ? args.action : "cancel_all") as Action;
             const res = await resolve(action, { index: typeof args.index === "number" ? args.index : undefined, byVoice: true });
-            if (res.ok && action === "confirm_all") onSaved.current?.();
             response = { status: res.ok ? "ok" : "failed", message: res.message };
           } else if (METRIC_TOOL_NAMES.has(c.name ?? "")) {
             response = await runMetricTool(c.name!, args as Record<string, unknown>);
@@ -272,7 +269,15 @@ export function useVoiceSession() {
           sessionResumption: s.handle ? { handle: s.handle } : {},
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 650, prefixPaddingMs: 200 } },
+          speechConfig: { languageCode: "fa-IR" },
+          realtimeInputConfig: {
+            automaticActivityDetection: {
+              startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
+              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
+              silenceDurationMs: 500,
+              prefixPaddingMs: 200,
+            },
+          },
           tools: [{ functionDeclarations: [...TOOL_DECLARATIONS, ...METRIC_TOOL_DECLARATIONS] }],
         },
         callbacks: {
@@ -325,17 +330,6 @@ export function useVoiceSession() {
     const rms = Math.sqrt(sum / f.length);
     levelRef.current = Math.min(1, rms * 8);
     if (!s.session) return;
-    const now = performance.now();
-    if (rms < SILENCE_RMS) {
-      if (!s.silentSince) s.silentSince = now;
-      if (now - s.silentSince > SILENCE_MS) {
-        if (!s.streamEnded) { s.session.sendRealtimeInput({ audioStreamEnd: true }); s.streamEnded = true; }
-        return;
-      }
-    } else {
-      s.silentSince = 0;
-      s.streamEnded = false;
-    }
     const int16 = new Int16Array(f.length);
     for (let i = 0; i < f.length; i++) int16[i] = Math.max(-32768, Math.min(32767, (f[i] ?? 0) * 32767));
     s.session.sendRealtimeInput({ audio: { data: toBase64(int16), mimeType: "audio/pcm;rate=16000" } });
@@ -363,7 +357,7 @@ export function useVoiceSession() {
         return;
       }
       try {
-        s.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+        s.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
       } catch (e) {
         const name = (e as DOMException)?.name;
         fail(name === "NotAllowedError" || name === "SecurityError"
