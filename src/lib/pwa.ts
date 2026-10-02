@@ -21,9 +21,18 @@ async function unregisterOurs() {
 export async function initPwa(onNeedRefresh: (update: () => void) => void) {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
   if (refused()) { await unregisterOurs().catch(() => {}); return; }
-  const { registerSW } = await import("virtual:pwa-register");
-  const update = registerSW({
-    immediate: true,
-    onNeedRefresh: () => onNeedRefresh(() => void update(true)),
+  const reg = await navigator.serviceWorker.register(SW_URL, { scope: "/" });
+  const prompt = (w: ServiceWorker) => onNeedRefresh(() => {
+    navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
+    w.postMessage({ type: "SKIP_WAITING" });
+  });
+  if (reg.waiting && navigator.serviceWorker.controller) prompt(reg.waiting);
+  reg.addEventListener("updatefound", () => {
+    const w = reg.installing;
+    if (!w) return;
+    w.addEventListener("statechange", () => {
+      // Only an update (an old worker already controls the page) needs the prompt.
+      if (w.state === "installed" && navigator.serviceWorker.controller) prompt(w);
+    });
   });
 }
