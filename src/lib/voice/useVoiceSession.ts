@@ -7,6 +7,7 @@ import { getVoiceToken } from "@/lib/voice.functions";
 import { jDate } from "@/lib/format";
 import type { Account, Category } from "@/lib/data";
 import { TOOL_DECLARATIONS, VOICE_CONFIRM_MAX, buildBatch, runReadTool, soundsLikeConfirmation, type PendingBatch, type PendingTx, type ToolArgs } from "./tools";
+import { METRIC_TOOL_DECLARATIONS, METRIC_TOOL_NAMES, runMetricTool } from "./metric-tools";
 
 export type VoiceStatus = "connecting" | "listening" | "speaking" | "error";
 
@@ -67,6 +68,7 @@ export function useVoiceSession() {
   const [pending, setPending] = useState<PendingBatch | null>(null);
   const levelRef = useRef(0);
   const onSaved = useRef<(() => void) | null>(null);
+  const onInserted = useRef<((ids: string[]) => void) | null>(null);
 
   const r = useRef(makeState());
 
@@ -135,10 +137,16 @@ export function useVoiceSession() {
       batch_id: b.batchId, batch_index: p.idx,
     }));
     if (!rows.length) return { ok: true as const };
-    const { error: e } = await supabase.from("transactions")
-      .upsert(rows, { onConflict: "batch_id,batch_index", ignoreDuplicates: true });
+    const { data: inserted, error: e } = await supabase.from("transactions")
+      .upsert(rows, { onConflict: "batch_id,batch_index", ignoreDuplicates: true }).select("id,batch_index,kind");
     if (e) return { ok: false as const, message: "ذخیره نشد: " + e.message };
     rows.forEach((row) => s.savedIdx.add(row.batch_index));
+    const ins = (inserted ?? []) as { id: string; batch_index: number; kind: string }[];
+    for (const p of items) {
+      const row = ins.find((x) => x.batch_index === p.idx);
+      if (row && p.decisionId) await supabase.from("decisions").update({ transaction_id: row.id }).eq("id", p.decisionId);
+    }
+    onInserted.current?.(ins.filter((x) => x.kind === "expense").map((x) => x.id));
     return { ok: true as const };
   }, []);
 
@@ -236,6 +244,8 @@ export function useVoiceSession() {
             const res = await resolve(action, { index: typeof args.index === "number" ? args.index : undefined, byVoice: true });
             if (res.ok && action === "confirm_all") onSaved.current?.();
             response = { status: res.ok ? "ok" : "failed", message: res.message };
+          } else if (METRIC_TOOL_NAMES.has(c.name ?? "")) {
+            response = await runMetricTool(c.name!, args as Record<string, unknown>);
           } else {
             response = await runReadTool(c.name ?? "", args, s.categories);
           }
@@ -263,7 +273,7 @@ export function useVoiceSession() {
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 650, prefixPaddingMs: 200 } },
-          tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
+          tools: [{ functionDeclarations: [...TOOL_DECLARATIONS, ...METRIC_TOOL_DECLARATIONS] }],
         },
         callbacks: {
           onopen: () => { opened = true; },
@@ -409,7 +419,7 @@ export function useVoiceSession() {
   }, []);
 
   return {
-    status, error, userText, assistantText, pending, getLevel, decide, updatePending, onSaved,
+    status, error, userText, assistantText, pending, getLevel, decide, updatePending, onSaved, onInserted,
     categories: () => r.current.categories, accounts: () => r.current.accounts,
   };
 }
