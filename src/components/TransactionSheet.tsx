@@ -7,8 +7,26 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { JalaliDatePicker } from "@/components/JalaliDatePicker";
 import { supabase } from "@/integrations/supabase/client";
-import { useAccounts, useCategories, useInvalidate, type Account, type Kind, type Transaction } from "@/lib/data";
-import { groupDigits, parseAmount } from "@/lib/format";
+import { budgetMonthKey, useAccounts, useCategories, useInvalidate, type Account, type Kind, type Transaction } from "@/lib/data";
+import { groupDigits, parseAmount, toFa } from "@/lib/format";
+import { endOfMonth, startOfMonth } from "date-fns-jalali";
+
+/** Toast when this expense pushes its category past 80% / 100% of the month's budget. */
+async function warnBudget(categoryId: string, date: Date, amount: number, previousAmount: number) {
+  const from = startOfMonth(date);
+  const [{ data: budget }, { data: txs }] = await Promise.all([
+    supabase.from("budgets").select("limit_amount").eq("category_id", categoryId).eq("month", budgetMonthKey(from)).maybeSingle(),
+    supabase.from("transactions").select("amount").eq("kind", "expense").eq("category_id", categoryId)
+      .gte("occurred_at", from.toISOString()).lte("occurred_at", endOfMonth(date).toISOString()),
+  ]);
+  if (!budget?.limit_amount) return;
+  const after = (txs ?? []).reduce((s, t) => s + Number(t.amount), 0);
+  const before = after - amount + previousAmount;
+  const limit = Number(budget.limit_amount);
+  const pct = toFa(Math.round((after / limit) * 100));
+  if (after > limit && before <= limit) toast.error(`از سقف بودجه‌ی این دسته گذشتید (${pct}٪)`);
+  else if (after >= limit * 0.8 && before < limit * 0.8) toast.warning(`${pct}٪ بودجه‌ی این دسته مصرف شد`);
+}
 
 export function TransactionSheet({
   open,
@@ -68,6 +86,7 @@ export function TransactionSheet({
     await invalidate("transactions");
     toast.success(editing ? "تراکنش ویرایش شد" : "تراکنش ثبت شد");
     onOpenChange(false);
+    if (kind === "expense" && categoryId) void warnBudget(categoryId, date, amount, editing?.kind === "expense" && editing.category_id === categoryId ? editing.amount : 0);
   }
 
   async function remove() {
