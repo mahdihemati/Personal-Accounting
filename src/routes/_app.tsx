@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
 import { GlobalTransactionEditor } from "@/components/GlobalTransactionEditor";
 import { dailyAlertCheck } from "@/lib/metrics-data";
+import { useAutoPriceRefresh } from "@/lib/assets-data";
 
 let defaultsEnsuredFor: string | null = null;
 
@@ -37,6 +38,7 @@ function AppShell() {
   const [voice, setVoice] = useState(false);
   const [voiceStart, setVoiceStart] = useState(false);
   const qc = useQueryClient();
+  useAutoPriceRefresh();
   // Once a day on app open: check categories spending faster than usual.
   useEffect(() => { void dailyAlertCheck().then(() => qc.invalidateQueries({ queryKey: ["alerts"] })); }, [qc]);
   // "?voice=1" (home-screen shortcut): show a big Start button — browsers require a tap before using the mic.
