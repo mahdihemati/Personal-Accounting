@@ -17,3 +17,4 @@
 - Schema changes are written as numbered SQL files in `db/` and applied directly to the external database with psql — the platform migration tool only works with Lovable Cloud.
 - Server functions needing the signed-in user use `requireAuth` from `src/lib/auth-middleware.ts` (JWT-verified, RLS-scoped client); `attachAuth` in `src/start.ts` adds the token — identity is never taken from client input.
 - AI insights call Gemini directly with the `GEMINI_API_KEY` secret (user's explicit choice); model id lives only in `src/lib/ai-config.ts`. All numbers are computed in code; only aggregates go to the model.
+- Voice assistant: browser connects to Gemini Live with a single-use ephemeral token from `getVoiceToken` (server, rate-limited via `voice_sessions`); read tools run in the browser under RLS, writes only after user confirmation — the main Gemini key never reaches the client.
