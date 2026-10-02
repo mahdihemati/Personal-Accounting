@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { AlertSettings } from "@/components/AlertSettings";
 import { NavasanSettings } from "@/components/NavasanSettings";
+import { TelegramSettings } from "@/components/TelegramSettings";
 import { PlanSettings } from "@/components/PlanSettings";
 import { LearningSettings } from "@/components/LearningSettings";
 import { InstallSection } from "@/components/Pwa";
@@ -135,6 +136,7 @@ function SettingsPage() {
       <PlanSettings />
       <AlertSettings />
       <NavasanSettings />
+      <TelegramSettings />
       <LearningSettings />
       <InstallSection />
 
