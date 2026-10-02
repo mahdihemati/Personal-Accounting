@@ -1,9 +1,12 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Home, ListOrdered, Mic, PieChart, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
+import { GlobalTransactionEditor } from "@/components/GlobalTransactionEditor";
+import { dailyAlertCheck } from "@/lib/metrics-data";
 
 let defaultsEnsuredFor: string | null = null;
 
@@ -33,6 +36,9 @@ const tabs = [
 function AppShell() {
   const [voice, setVoice] = useState(false);
   const [voiceStart, setVoiceStart] = useState(false);
+  const qc = useQueryClient();
+  // Once a day on app open: check categories spending faster than usual.
+  useEffect(() => { void dailyAlertCheck().then(() => qc.invalidateQueries({ queryKey: ["alerts"] })); }, [qc]);
   // "?voice=1" (home-screen shortcut): show a big Start button — browsers require a tap before using the mic.
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -75,6 +81,7 @@ function AppShell() {
         </div>
       )}
       {voice && <VoiceOverlay onClose={() => setVoice(false)} />}
+      <GlobalTransactionEditor />
     </div>
   );
 }
