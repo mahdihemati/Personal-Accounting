@@ -63,6 +63,11 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
     description: "مصرف و باقی‌مانده‌ی بودجه‌ی ماه جاری (یک دسته یا همه).",
     parameters: { type: Type.OBJECT, properties: { category_name: { type: Type.STRING } } },
   },
+  {
+    name: "get_financial_vitals",
+    description: "علائم حیاتی مالی کاربر: Runway (ماه)، نرخ پس‌انداز، سهم هزینه‌ی ضروری از درآمد، پیشرفت صندوق اضطراری. همه با کد محاسبه شده‌اند.",
+    parameters: { type: Type.OBJECT, properties: {} },
+  },
 ];
 
 export type ItemArgs = { category_name?: string; kind?: string; account_name?: string; occurred_at?: string; amount_toman?: number; note?: string };
@@ -139,6 +144,29 @@ export async function runReadTool(name: string, args: ToolArgs, categories: Cate
           limit_toman: Number(b.limit_amount), spent_toman: spent, remaining_toman: Number(b.limit_amount) - spent,
         };
       }),
+    };
+  }
+  if (name === "get_financial_vitals") {
+    const { computeFinanceMetrics } = await import("../finance-metrics");
+    const [acc, tx, set] = await Promise.all([
+      supabase.from("accounts").select("initial_balance"),
+      supabase.from("transactions").select("amount,kind,occurred_at,category_id,necessity_override"),
+      supabase.from("user_settings").select("monthly_income_expected,monthly_essential_expected,emergency_fund_target_months").maybeSingle(),
+    ]);
+    if (acc.error || tx.error) throw new Error((acc.error ?? tx.error)!.message);
+    const m = computeFinanceMetrics({
+      accounts: (acc.data ?? []) as { initial_balance: number }[],
+      txs: ((tx.data ?? []) as { amount: number; kind: Kind | "transfer"; occurred_at: string; category_id: string | null }[]).map((t) => ({ ...t, amount: Number(t.amount) })),
+      categories: categories.map((c) => ({ id: c.id, kind: c.kind, necessity: c.necessity })),
+      settings: set.data as never, lessons: [], completedSlugs: [],
+    });
+    return {
+      runway_months: m.runway_months, liquid_balance_toman: m.liquid_balance, essential_monthly_toman: m.essential_monthly,
+      savings_rate_percent: m.savings_rate_month == null ? null : Math.round(m.savings_rate_month * 100),
+      essential_share_percent: m.essential_share == null ? null : Math.round(m.essential_share * 100),
+      emergency_fund_progress_percent: m.emergency_progress == null ? null : Math.round(m.emergency_progress * 100),
+      emergency_fund_target_months: m.emergency_fund_target_months,
+      note: m.runway_months == null ? "هزینه‌ی ضروری ماهانه هنوز معلوم نیست" : undefined,
     };
   }
   return { error: "ابزار ناشناخته" };
