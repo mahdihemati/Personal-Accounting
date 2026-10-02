@@ -1,8 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { LogOut, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, LogOut, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,14 @@ function SettingsPage() {
   return (
     <main className="space-y-6 px-5 pt-8">
       <h1 className="text-2xl font-bold">تنظیمات</h1>
+
+      <Link to="/budgets" className="flex items-center justify-between rounded-3xl bg-card px-5 py-4 hover:bg-muted/60">
+        <span>
+          <span className="block font-semibold">بودجه‌ی ماهانه</span>
+          <span className="text-xs text-muted-foreground">سقف هزینه برای هر دسته</span>
+        </span>
+        <ChevronLeft className="text-muted-foreground" />
+      </Link>
 
       <section className="rounded-3xl bg-card p-2">
         <div className="flex items-center justify-between px-3 pt-2">
