@@ -1,75 +1,8 @@
-import { Type, type FunctionDeclaration } from "@google/genai";
 import { addDays, addMonths, endOfMonth, startOfDay, startOfMonth } from "date-fns-jalali";
 import { supabase } from "@/integrations/supabase/client";
 import type { Account, Category, Kind } from "@/lib/data";
 
-const PERIOD = { type: Type.STRING, enum: ["this_month", "last_month", "last_7_days"] };
-
-export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
-  {
-    name: "propose_transactions",
-    description: "پیشنهاد ثبت یک یا چند تراکنش (حداکثر ۸) با یک فراخوانی؛ کارت تأیید دسته‌جمعی نشان داده می‌شود و تا تأیید کاربر چیزی ذخیره نمی‌شود. ثبت تکی هم با آرایه‌ی یک‌عضوی.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        items: {
-          type: Type.ARRAY,
-          maxItems: "8",
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              amount_toman: { type: Type.INTEGER, description: "مبلغ به تومان" },
-              kind: { type: Type.STRING, enum: ["income", "expense"] },
-              category_name: { type: Type.STRING },
-              account_name: { type: Type.STRING },
-              occurred_at: { type: Type.STRING, description: "ISO 8601" },
-              note: { type: Type.STRING },
-              decision_id: { type: Type.STRING, description: "شناسه‌ی تصمیمی که record_decision برگرداند (اختیاری)" },
-            },
-            required: ["amount_toman", "kind", "category_name"],
-          },
-        },
-      },
-      required: ["items"],
-    },
-  },
-  {
-    name: "resolve_pending_transaction",
-    description: "لغو همه (cancel_all) یا حذف یک ردیف (remove_item با index از صفر) از پنجره‌ی تأیید. ثبت فقط با لمس دکمه است.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: {
-        action: { type: Type.STRING, enum: ["cancel_all", "remove_item"] },
-        index: { type: Type.INTEGER, description: "شماره‌ی ردیف از صفر؛ فقط برای remove_item" },
-      },
-      required: ["action"],
-    },
-  },
-  {
-    name: "get_period_summary",
-    description: "جمع درآمد، هزینه و مانده در یک دوره.",
-    parameters: { type: Type.OBJECT, properties: { period: PERIOD }, required: ["period"] },
-  },
-  {
-    name: "get_category_spending",
-    description: "جمع هزینه‌ی یک دسته در یک دوره.",
-    parameters: {
-      type: Type.OBJECT,
-      properties: { category_name: { type: Type.STRING }, period: PERIOD },
-      required: ["category_name", "period"],
-    },
-  },
-  {
-    name: "get_budget_status",
-    description: "مصرف و باقی‌مانده‌ی بودجه‌ی ماه جاری (یک دسته یا همه).",
-    parameters: { type: Type.OBJECT, properties: { category_name: { type: Type.STRING } } },
-  },
-  {
-    name: "get_financial_vitals",
-    description: "علائم حیاتی مالی کاربر: Runway (ماه)، نرخ پس‌انداز، سهم هزینه‌ی ضروری از درآمد، پیشرفت صندوق اضطراری. همه با کد محاسبه شده‌اند.",
-    parameters: { type: Type.OBJECT, properties: {} },
-  },
-];
+export { TOOL_DECLARATIONS } from "./declarations";
 
 export type ItemArgs = { decision_id?: string; category_name?: string; kind?: string; account_name?: string; occurred_at?: string; amount_toman?: number; note?: string };
 export type ToolArgs = ItemArgs & { period?: string; items?: ItemArgs[]; action?: string; index?: number };
