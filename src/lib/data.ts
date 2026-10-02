@@ -130,6 +130,8 @@ export type UserSettings = {
   savings_target: number | null;
   monthly_essential_expected: number | null;
   review_categories_seen: boolean;
+  emergency_fund_target_months?: number;
+  report_weekday?: number;
 };
 
 export function useUserSettings() {
