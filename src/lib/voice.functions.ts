@@ -22,8 +22,6 @@ export const getVoiceToken = createServerFn({ method: "POST" })
       .from("voice_sessions").select("id", { count: "exact", head: true }).gte("created_at", since);
     if (cErr) return { status: "error", message: "بررسی محدودیت ممکن نشد. دوباره تلاش کنید." };
     if ((count ?? 0) >= MAX_PER_HOUR) {
-      const { setResponseStatus } = await import("@tanstack/react-start/server");
-      setResponseStatus(429);
       return { status: "rate_limited", message: "در یک ساعت گذشته بیش از حد از دستیار صوتی استفاده کرده‌اید. کمی بعد دوباره امتحان کنید." };
     }
 
