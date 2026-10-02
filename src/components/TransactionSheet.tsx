@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { JalaliDatePicker } from "@/components/JalaliDatePicker";
 import { supabase } from "@/integrations/supabase/client";
-import { useAccounts, useCategories, useInvalidate, type Kind, type Transaction } from "@/lib/data";
+import { useAccounts, useCategories, useInvalidate, type Account, type Kind, type Transaction } from "@/lib/data";
 import { groupDigits, parseAmount } from "@/lib/format";
 
 export function TransactionSheet({
@@ -22,7 +22,8 @@ export function TransactionSheet({
   const { data: accounts = [] } = useAccounts();
   const { data: categories = [] } = useCategories();
   const invalidate = useInvalidate();
-  const [kind, setKind] = useState<Kind>("expense");
+  const [kind, setKind] = useState<Kind | "transfer">("expense");
+  const [toAccountId, setToAccountId] = useState<string>("");
   const [amount, setAmount] = useState(0);
   const [categoryId, setCategoryId] = useState<string>("");
   const [accountId, setAccountId] = useState<string>("");
@@ -32,7 +33,8 @@ export function TransactionSheet({
 
   useEffect(() => {
     if (!open) return;
-    setKind(editing?.kind === "income" ? "income" : "expense");
+    setKind(editing?.kind ?? "expense");
+    setToAccountId(editing?.to_account_id ?? "");
     setAmount(editing?.amount ?? 0);
     setCategoryId(editing?.category_id ?? "");
     setAccountId(editing?.account_id ?? accounts[0]?.id ?? "");
@@ -45,12 +47,16 @@ export function TransactionSheet({
   async function save() {
     if (!amount) { toast.error("مبلغ را وارد کنید"); return; }
     if (!accountId) { toast.error("یک حساب انتخاب کنید"); return; }
+    const isTransfer = kind === "transfer";
+    if (isTransfer && !toAccountId) { toast.error("حساب مقصد را انتخاب کنید"); return; }
+    if (isTransfer && toAccountId === accountId) { toast.error("حساب مبدأ و مقصد نباید یکی باشند"); return; }
     setSaving(true);
     const row = {
       kind,
       amount,
-      category_id: categoryId || null,
+      category_id: isTransfer ? null : categoryId || null,
       account_id: accountId,
+      to_account_id: isTransfer ? toAccountId : null,
       occurred_at: date.toISOString(),
       note: note.trim() || null,
     };
@@ -80,17 +86,17 @@ export function TransactionSheet({
           <SheetTitle>{editing ? "ویرایش تراکنش" : "تراکنش جدید"}</SheetTitle>
         </SheetHeader>
         <div className="space-y-5">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1">
-            {(["expense", "income"] as Kind[]).map((k) => (
+          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-muted p-1">
+            {(["expense", "income", "transfer"] as const).map((k) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => { setKind(k); setCategoryId(""); }}
                 className={`rounded-xl py-2.5 text-sm font-medium transition-colors ${
-                  kind === k ? (k === "income" ? "bg-income text-primary-foreground" : "bg-expense text-primary-foreground") : "text-muted-foreground"
+                  kind === k ? (k === "income" ? "bg-income text-primary-foreground" : k === "expense" ? "bg-expense text-primary-foreground" : "bg-primary text-primary-foreground") : "text-muted-foreground"
                 }`}
               >
-                {k === "income" ? "درآمد" : "هزینه"}
+                {k === "income" ? "درآمد" : k === "expense" ? "هزینه" : "انتقال"}
               </button>
             ))}
           </div>
@@ -105,25 +111,38 @@ export function TransactionSheet({
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>دسته</Label>
-              <Select value={categoryId} onValueChange={setCategoryId} dir="rtl">
-                <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
-                <SelectContent>
-                  {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>حساب</Label>
-              <Select value={accountId} onValueChange={setAccountId} dir="rtl">
-                <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
-                <SelectContent>
-                  {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {kind === "transfer" ? (
+              <>
+                <div className="space-y-2">
+                  <Label>از حساب</Label>
+                  <AccountSelect value={accountId} onChange={setAccountId} accounts={accounts} />
+                </div>
+                <div className="space-y-2">
+                  <Label>به حساب</Label>
+                  <AccountSelect value={toAccountId} onChange={setToAccountId} accounts={accounts.filter((a) => a.id !== accountId)} />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label>دسته</Label>
+                  <Select value={categoryId} onValueChange={setCategoryId} dir="rtl">
+                    <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
+                    <SelectContent>
+                      {cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>حساب</Label>
+                  <AccountSelect value={accountId} onChange={setAccountId} accounts={accounts} />
+                </div>
+              </>
+            )}
           </div>
+          {kind === "transfer" && accounts.length < 2 && (
+            <p className="text-xs text-muted-foreground">برای انتقال حداقل دو حساب لازم است؛ از تنظیمات حساب جدید بسازید.</p>
+          )}
           <div className="space-y-2">
             <Label>تاریخ</Label>
             <JalaliDatePicker value={date} onChange={setDate} />
@@ -145,5 +164,16 @@ export function TransactionSheet({
         </div>
       </SheetContent>
     </Sheet>
+  );
+}
+
+function AccountSelect({ value, onChange, accounts }: { value: string; onChange: (v: string) => void; accounts: Account[] }) {
+  return (
+    <Select value={value} onValueChange={onChange} dir="rtl">
+      <SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="انتخاب" /></SelectTrigger>
+      <SelectContent>
+        {accounts.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+      </SelectContent>
+    </Select>
   );
 }
