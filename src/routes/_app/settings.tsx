@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { PlanSettings } from "@/components/PlanSettings";
+import { InstallSection } from "@/components/Pwa";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -39,6 +42,12 @@ const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 function SettingsPage() {
   const { data: accounts = [] } = useAccounts();
   const balances = useAccountBalances();
+  const invalidateAll = useInvalidate();
+  async function setNecessity(id: string, essential: boolean) {
+    const { error } = await supabase.from("categories").update({ necessity: essential ? "essential" : "flexible" }).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    await invalidateAll("categories");
+  }
   const { data: categories = [] } = useCategories();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -94,14 +103,25 @@ function SettingsPage() {
         </div>
         <div className="flex flex-wrap gap-2 p-3">
           {categories.map((c) => (
-            <button key={c.id} onClick={() => setCat(c)} className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-sm">
-              <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color ?? "#64748b" }} />
-              {c.name}
-              <span className="text-xs text-muted-foreground">{c.kind === "income" ? "درآمد" : "هزینه"}</span>
-            </button>
+            <span key={c.id} className="flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-sm">
+              <button type="button" onClick={() => setCat(c)} className="flex items-center gap-2">
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: c.color ?? "#64748b" }} />
+                {c.name}
+                <span className="text-xs text-muted-foreground">{c.kind === "income" ? "درآمد" : "هزینه"}</span>
+              </button>
+              {c.kind === "expense" && (
+                <label className="flex items-center gap-1.5 border-r border-border pr-2 text-xs text-muted-foreground">
+                  ضروری
+                  <Switch checked={c.necessity === "essential"} onCheckedChange={(on) => void setNecessity(c.id, on)} />
+                </label>
+              )}
+            </span>
           ))}
         </div>
       </section>
+
+      <PlanSettings />
+      <InstallSection />
 
       <Button variant="outline" onClick={signOut} className="h-12 w-full rounded-2xl text-expense">
         <LogOut /> خروج از حساب
