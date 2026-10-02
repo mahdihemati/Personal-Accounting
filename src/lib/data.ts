@@ -83,3 +83,41 @@ export function useInvalidate() {
   const qc = useQueryClient();
   return (...keys: string[]) => Promise.all(keys.map((k) => qc.invalidateQueries({ queryKey: [k] })));
 }
+
+export type Budget = { id: string; category_id: string; month: string; limit_amount: number };
+
+/** Budget month key: Gregorian yyyy-MM-dd of the Jalali month's first day (local time). */
+export function budgetMonthKey(jalaliMonthStart: Date): string {
+  const d = jalaliMonthStart;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export function useBudgets(monthStart: Date) {
+  const key = budgetMonthKey(monthStart);
+  return useQuery({
+    queryKey: ["budgets", key],
+    queryFn: async () =>
+      unwrap<Budget[]>(await supabase.from("budgets").select("id,category_id,month,limit_amount").eq("month", key)),
+  });
+}
+
+export type BudgetProgress = { budget: Budget; spent: number; ratio: number };
+
+/** Spent vs limit per budgeted category for a Jalali month (expenses only; transfers excluded). */
+export function useBudgetProgress(range: { from: Date; to: Date }) {
+  const budgets = useBudgets(range.from);
+  const txs = useTransactions(range);
+  const spentBy = new Map<string, number>();
+  for (const t of txs.data ?? []) {
+    if (t.kind === "expense" && t.category_id) spentBy.set(t.category_id, (spentBy.get(t.category_id) ?? 0) + t.amount);
+  }
+  const items: BudgetProgress[] = (budgets.data ?? []).map((b) => {
+    const spent = spentBy.get(b.category_id) ?? 0;
+    return { budget: b, spent, ratio: b.limit_amount ? spent / b.limit_amount : 0 };
+  });
+  return { items, isLoading: budgets.isLoading || txs.isLoading };
+}
+
+export function budgetTone(ratio: number): "ok" | "warn" | "over" {
+  return ratio > 1 ? "over" : ratio >= 0.8 ? "warn" : "ok";
+}
