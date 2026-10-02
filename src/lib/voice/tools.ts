@@ -184,17 +184,22 @@ export type PendingTx = {
   note: string;
   rawTranscript: string;
   decisionId?: string | undefined;
+  /** Amount, category or account could not be resolved; user must check it in the card. */
+  needsFix?: boolean;
 };
 
 export function buildPending(args: ItemArgs, idx: number, categories: Category[], accounts: Account[], transcript: string): PendingTx {
   const kind = (args.kind === "income" ? "income" : "expense") as Kind;
   const cats = categories.filter((c) => c.kind === kind);
-  const cat = closest(cats, args.category_name as string) ?? cats[0];
-  const acc = closest(accounts, args.account_name as string) ?? accounts[0];
+  const matchedCat = closest(cats, args.category_name as string);
+  const matchedAcc = args.account_name ? closest(accounts, args.account_name as string) : accounts[0];
+  const cat = matchedCat ?? cats[0];
+  const acc = matchedAcc ?? accounts[0];
+  const amount = Math.max(0, Math.round(Number(args.amount_toman) || 0));
   const d = args.occurred_at ? new Date(String(args.occurred_at)) : new Date();
   return {
     idx,
-    amount: Math.max(0, Math.round(Number(args.amount_toman) || 0)),
+    amount,
     kind,
     categoryId: cat?.id ?? "",
     accountId: acc?.id ?? "",
@@ -202,6 +207,7 @@ export function buildPending(args: ItemArgs, idx: number, categories: Category[]
     note: typeof args.note === "string" ? args.note : "",
     rawTranscript: transcript,
     decisionId: typeof args.decision_id === "string" ? args.decision_id : undefined,
+    needsFix: !amount || !matchedCat || !matchedAcc,
   };
 }
 
