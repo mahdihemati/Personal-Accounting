@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,7 +82,7 @@ function AuthPage() {
           <Input id="password" type="password" dir="ltr" required minLength={6} autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 rounded-xl" />
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <Checkbox checked={remember} onCheckedChange={(v) => setRemember(v === true)} />
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="size-4 accent-primary" />
           مرا به خاطر بسپار
         </label>
         <Button type="submit" disabled={busy} className="h-12 w-full rounded-xl text-base">
