@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppBudgetsRouteImport } from './routes/_app/budgets'
 import { Route as AppInsightsRouteImport } from './routes/_app/insights'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
@@ -28,6 +29,11 @@ const AuthRoute = AuthRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBudgetsRoute = AppBudgetsRouteImport.update({
+  id: '/budgets',
+  path: '/budgets',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInsightsRoute = AppInsightsRouteImport.update({
@@ -49,12 +55,14 @@ const AppTransactionsRoute = AppTransactionsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
+  '/budgets': typeof AppBudgetsRoute
   '/insights': typeof AppInsightsRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/budgets': typeof AppBudgetsRoute
   '/insights': typeof AppInsightsRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
@@ -64,6 +72,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_app/budgets': typeof AppBudgetsRoute
   '/_app/insights': typeof AppInsightsRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/transactions': typeof AppTransactionsRoute
@@ -71,13 +80,15 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/insights' | '/settings' | '/transactions'
+  fullPaths:
+    '/' | '/auth' | '/budgets' | '/insights' | '/settings' | '/transactions'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/insights' | '/settings' | '/transactions' | '/'
+  to: '/auth' | '/budgets' | '/insights' | '/settings' | '/transactions' | '/'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
+    | '/_app/budgets'
     | '/_app/insights'
     | '/_app/settings'
     | '/_app/transactions'
@@ -112,6 +123,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/budgets': {
+      id: '/_app/budgets'
+      path: '/budgets'
+      fullPath: '/budgets'
+      preLoaderRoute: typeof AppBudgetsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/insights': {
       id: '/_app/insights'
       path: '/insights'
@@ -137,6 +155,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppBudgetsRoute: typeof AppBudgetsRoute
   AppInsightsRoute: typeof AppInsightsRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
@@ -144,6 +163,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBudgetsRoute: AppBudgetsRoute,
   AppInsightsRoute: AppInsightsRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTransactionsRoute: AppTransactionsRoute,
