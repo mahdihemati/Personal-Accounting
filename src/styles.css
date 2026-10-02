@@ -30,6 +30,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-income: var(--income);
   --color-expense: var(--expense);
+  --color-warning: var(--warning);
   --color-surface: var(--surface);
   --color-border: var(--border);
   --color-input: var(--input);
@@ -71,6 +72,7 @@
   --destructive-foreground: oklch(0.98 0 0);
   --income: oklch(0.76 0.15 160);
   --expense: oklch(0.72 0.12 22);
+  --warning: oklch(0.82 0.12 75);
   --border: oklch(0.33 0.02 255);
   --input: oklch(0.34 0.02 255);
   --ring: oklch(0.74 0.15 163);
