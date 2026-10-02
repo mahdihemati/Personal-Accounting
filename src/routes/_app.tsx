@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Home, ListOrdered, Mic, PieChart, Settings } from "lucide-react";
+import { GraduationCap, Home, ListOrdered, Mic, PieChart, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
 
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_app")({
 const tabs = [
   { to: "/", label: "خانه", icon: Home },
   { to: "/transactions", label: "تراکنش‌ها", icon: ListOrdered },
+  { to: "/learn", label: "یادگیری", icon: GraduationCap },
   { to: "/insights", label: "تحلیل", icon: PieChart },
   { to: "/settings", label: "تنظیمات", icon: Settings },
 ] as const;
@@ -45,8 +46,8 @@ function AppShell() {
     <div className="mx-auto min-h-screen max-w-lg pb-32">
       <Outlet />
       <nav className="fixed inset-x-0 bottom-0 z-40 mx-auto max-w-lg px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
-        <div className="relative grid grid-cols-5 items-end rounded-3xl bg-surface/95 px-2 py-2 backdrop-blur">
-          {tabs.slice(0, 2).map((t) => <Tab key={t.to} {...t} />)}
+        <div className="relative grid grid-cols-6 items-end rounded-3xl bg-surface/95 px-2 py-2 backdrop-blur">
+          {tabs.slice(0, 3).map((t) => <Tab key={t.to} {...t} />)}
           <div className="flex justify-center">
             <button
               type="button"
@@ -57,7 +58,7 @@ function AppShell() {
               <Mic className="size-7" />
             </button>
           </div>
-          {tabs.slice(2).map((t) => <Tab key={t.to} {...t} />)}
+          {tabs.slice(3).map((t) => <Tab key={t.to} {...t} />)}
         </div>
       </nav>
       {voiceStart && !voice && (
