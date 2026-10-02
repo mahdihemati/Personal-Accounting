@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionSheet } from "@/components/TransactionSheet";
-import { useAccounts, useCategories, useTotals, useTransactions, type Transaction } from "@/lib/data";
+import { budgetTone, useAccounts, useBudgetProgress, useCategories, useTotals, useTransactions, type Transaction } from "@/lib/data";
 import { formatToman, formatTomanShort, toFa } from "@/lib/format";
 
 export const Route = createFileRoute("/_app/")({
@@ -28,6 +28,10 @@ function HomePage() {
   const { data: categories = [] } = useCategories();
   const { data: totals = [] } = useTotals();
   const { data: month = [] } = useTransactions(range);
+  const { items: budgetItems } = useBudgetProgress(range);
+  const budgetLimit = budgetItems.reduce((s, i) => s + i.budget.limit_amount, 0);
+  const budgetSpent = budgetItems.reduce((s, i) => s + i.spent, 0);
+  const overCount = budgetItems.filter((i) => i.ratio > 1).length;
   const { data: recent = [] } = useTransactions(undefined, 5);
   const [sheet, setSheet] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
@@ -75,6 +79,28 @@ function HomePage() {
           <p className="mt-2 text-xl font-bold text-expense">{formatTomanShort(expense)}</p>
         </div>
       </section>
+
+      <Link to="/budgets" className="block rounded-3xl bg-card p-5">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold">بودجه‌ی این ماه</p>
+          {overCount > 0 && <span className="text-xs text-expense">{toFa(overCount)} دسته بیش از سقف</span>}
+        </div>
+        {budgetItems.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">هنوز بودجه‌ای تعریف نکرده‌اید — برای تعریف لمس کنید.</p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {formatTomanShort(budgetSpent)} از {formatTomanShort(budgetLimit)}
+            </p>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={`h-full rounded-full ${{ ok: "bg-income", warn: "bg-warning", over: "bg-expense" }[budgetTone(budgetLimit ? budgetSpent / budgetLimit : 0)]}`}
+                style={{ width: `${Math.min(budgetLimit ? budgetSpent / budgetLimit : 0, 1) * 100}%` }}
+              />
+            </div>
+          </>
+        )}
+      </Link>
 
       <section className="rounded-3xl bg-card p-5">
         <p className="mb-4 font-semibold">روند این ماه</p>
