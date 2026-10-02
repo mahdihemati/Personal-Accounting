@@ -8,6 +8,9 @@ import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionSheet } from "@/components/TransactionSheet";
 import { VitalsCards, WeeklyReportCard } from "@/components/VitalsCards";
 import { DailyBudgetCard, ForecastCard, ReviewCategoriesCard } from "@/components/PlanCards";
+import { AlertsCard } from "@/components/AlertsCard";
+import { DecisionReviewCard } from "@/components/DecisionReviewCard";
+import { PurchaseCheckButton } from "@/components/PurchaseCheck";
 import { budgetTone, useAccounts, useBudgetProgress, useCategories, useTotals, useTransactions, type Transaction } from "@/lib/data";
 import { formatToman, formatTomanShort, toFa } from "@/lib/format";
 
@@ -72,7 +75,10 @@ function HomePage() {
       </header>
 
       <ReviewCategoriesCard />
+      <AlertsCard />
+      <DecisionReviewCard />
       <DailyBudgetCard />
+      <PurchaseCheckButton />
       <WeeklyReportCard />
       <VitalsCards />
 
