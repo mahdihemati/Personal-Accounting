@@ -51,6 +51,7 @@ function makeState() {
     lastTurnUser: "",
     categories: [] as Category[],
     accounts: [] as Account[],
+    frequentNotes: [] as string[],
     pendingCallId: null as string | null,
     pending: null as PendingBatch | null,
     heardSinceCard: "",
@@ -134,7 +135,9 @@ export function useVoiceSession() {
       `دسته‌های هزینه: ${s.categories.filter((c) => c.kind === "expense").map((c) => c.name).join("، ")}`,
       `دسته‌های درآمد: ${s.categories.filter((c) => c.kind === "income").map((c) => c.name).join("، ")}`,
       `حساب‌ها: ${s.accounts.map((a) => a.name).join("، ")}`,
-    ].join("\n");
+      s.accounts[0] ? `حساب پیش‌فرض: ${s.accounts[0].name}` : "",
+      s.frequentNotes.length ? `یادداشت‌های پرتکرار کاربر (برای شناخت نام‌ها): ${s.frequentNotes.join("، ")}` : "",
+    ].filter(Boolean).join("\n");
     sendText(text, false);
     s.contextSent = true;
   }, [sendText]);
@@ -462,12 +465,19 @@ export function useVoiceSession() {
       }
       if (s.closed) { s.stream.getTracks().forEach((t) => t.stop()); return; }
       try {
-        const [{ data: cats }, { data: accs }] = await Promise.all([
+        const [{ data: cats }, { data: accs }, { data: notes }] = await Promise.all([
           supabase.from("categories").select("*").order("name"),
           supabase.from("accounts").select("*").order("created_at"),
+          supabase.from("transactions").select("note").not("note", "is", null).order("occurred_at", { ascending: false }).limit(200),
         ]);
         s.categories = (cats ?? []) as Category[];
         s.accounts = (accs ?? []) as Account[];
+        const counts = new Map<string, number>();
+        for (const n of (notes ?? []) as { note: string | null }[]) {
+          const t = (n.note ?? "").trim();
+          if (t && t.length <= 30) counts.set(t, (counts.get(t) ?? 0) + 1);
+        }
+        s.frequentNotes = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10).map(([t]) => t);
 
         s.outCtx = new AudioContext({ sampleRate: 24000 });
         s.analyser = s.outCtx.createAnalyser();
