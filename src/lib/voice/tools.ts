@@ -24,6 +24,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
               account_name: { type: Type.STRING },
               occurred_at: { type: Type.STRING, description: "ISO 8601" },
               note: { type: Type.STRING },
+              decision_id: { type: Type.STRING, description: "شناسه‌ی تصمیمی که record_decision برگرداند (اختیاری)" },
             },
             required: ["amount_toman", "kind", "category_name"],
           },
@@ -70,7 +71,7 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
 ];
 
-export type ItemArgs = { category_name?: string; kind?: string; account_name?: string; occurred_at?: string; amount_toman?: number; note?: string };
+export type ItemArgs = { decision_id?: string; category_name?: string; kind?: string; account_name?: string; occurred_at?: string; amount_toman?: number; note?: string };
 export type ToolArgs = ItemArgs & { period?: string; items?: ItemArgs[]; action?: string; index?: number };
 
 type Period = "this_month" | "last_month" | "last_7_days";
@@ -182,6 +183,7 @@ export type PendingTx = {
   occurredAt: Date;
   note: string;
   rawTranscript: string;
+  decisionId?: string | undefined;
 };
 
 export function buildPending(args: ItemArgs, idx: number, categories: Category[], accounts: Account[], transcript: string): PendingTx {
@@ -199,6 +201,7 @@ export function buildPending(args: ItemArgs, idx: number, categories: Category[]
     occurredAt: isNaN(d.getTime()) ? new Date() : d,
     note: typeof args.note === "string" ? args.note : "",
     rawTranscript: transcript,
+    decisionId: typeof args.decision_id === "string" ? args.decision_id : undefined,
   };
 }
 
