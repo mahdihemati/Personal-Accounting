@@ -81,7 +81,7 @@ export function VoiceOverlay({ onClose }: { onClose: () => void }) {
       <div className="flex w-full max-w-lg flex-col items-center gap-3">
         {v.pending && (
           <div role="dialog" aria-modal="true" aria-label="تأیید تراکنش‌ها"
-            className="fixed inset-0 z-[60] grid place-items-center bg-background/70 p-4 backdrop-blur-sm animate-in fade-in">
+            className="fixed inset-0 z-[100] grid place-items-center bg-background/70 p-4 backdrop-blur-sm animate-in fade-in">
             <VoiceConfirmCard batch={v.pending} categories={v.categories()} accounts={v.accounts()}
               onDecide={decide} onChange={v.updatePending} />
           </div>
