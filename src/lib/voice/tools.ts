@@ -7,28 +7,41 @@ const PERIOD = { type: Type.STRING, enum: ["this_month", "last_month", "last_7_d
 
 export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   {
-    name: "propose_transaction",
-    description: "پیشنهاد ثبت یک تراکنش؛ به کاربر کارت تأیید نشان داده می‌شود و تا تأیید او ذخیره نمی‌شود.",
+    name: "propose_transactions",
+    description: "پیشنهاد ثبت یک یا چند تراکنش (حداکثر ۸) با یک فراخوانی؛ کارت تأیید دسته‌جمعی نشان داده می‌شود و تا تأیید کاربر چیزی ذخیره نمی‌شود. ثبت تکی هم با آرایه‌ی یک‌عضوی.",
     parameters: {
       type: Type.OBJECT,
       properties: {
-        amount_toman: { type: Type.INTEGER, description: "مبلغ به تومان" },
-        kind: { type: Type.STRING, enum: ["income", "expense"] },
-        category_name: { type: Type.STRING },
-        account_name: { type: Type.STRING },
-        occurred_at: { type: Type.STRING, description: "ISO 8601" },
-        note: { type: Type.STRING },
+        items: {
+          type: Type.ARRAY,
+          maxItems: "8",
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              amount_toman: { type: Type.INTEGER, description: "مبلغ به تومان" },
+              kind: { type: Type.STRING, enum: ["income", "expense"] },
+              category_name: { type: Type.STRING },
+              account_name: { type: Type.STRING },
+              occurred_at: { type: Type.STRING, description: "ISO 8601" },
+              note: { type: Type.STRING },
+            },
+            required: ["amount_toman", "kind", "category_name"],
+          },
+        },
       },
-      required: ["amount_toman", "kind", "category_name"],
+      required: ["items"],
     },
   },
   {
     name: "resolve_pending_transaction",
-    description: "وقتی کاربر کارت تأیید را با صدا تأیید یا رد کرد.",
+    description: "وقتی کاربر درباره‌ی کارت تأیید با صدا تصمیم گرفت: confirm_all (ثبت همه)، cancel_all (لغو همه)، remove_item (حذف یک ردیف با index از صفر).",
     parameters: {
       type: Type.OBJECT,
-      properties: { decision: { type: Type.STRING, enum: ["confirm", "cancel"] } },
-      required: ["decision"],
+      properties: {
+        action: { type: Type.STRING, enum: ["confirm_all", "cancel_all", "remove_item"] },
+        index: { type: Type.INTEGER, description: "شماره‌ی ردیف از صفر؛ فقط برای remove_item" },
+      },
+      required: ["action"],
     },
   },
   {
@@ -52,7 +65,8 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
 ];
 
-export type ToolArgs = { period?: string; category_name?: string; kind?: string; account_name?: string; occurred_at?: string; amount_toman?: number; note?: string; decision?: string };
+export type ItemArgs = { category_name?: string; kind?: string; account_name?: string; occurred_at?: string; amount_toman?: number; note?: string };
+export type ToolArgs = ItemArgs & { period?: string; items?: ItemArgs[]; action?: string; index?: number };
 
 type Period = "this_month" | "last_month" | "last_7_days";
 
@@ -131,6 +145,8 @@ export async function runReadTool(name: string, args: ToolArgs, categories: Cate
 }
 
 export type PendingTx = {
+  /** Stable position within the batch (idempotency key with batchId). */
+  idx: number;
   amount: number;
   kind: Kind;
   categoryId: string;
@@ -140,13 +156,14 @@ export type PendingTx = {
   rawTranscript: string;
 };
 
-export function buildPending(args: ToolArgs, categories: Category[], accounts: Account[], transcript: string): PendingTx {
+export function buildPending(args: ItemArgs, idx: number, categories: Category[], accounts: Account[], transcript: string): PendingTx {
   const kind = (args.kind === "income" ? "income" : "expense") as Kind;
   const cats = categories.filter((c) => c.kind === kind);
   const cat = closest(cats, args.category_name as string) ?? cats[0];
   const acc = closest(accounts, args.account_name as string) ?? accounts[0];
   const d = args.occurred_at ? new Date(String(args.occurred_at)) : new Date();
   return {
+    idx,
     amount: Math.max(0, Math.round(Number(args.amount_toman) || 0)),
     kind,
     categoryId: cat?.id ?? "",
@@ -154,5 +171,24 @@ export function buildPending(args: ToolArgs, categories: Category[], accounts: A
     occurredAt: isNaN(d.getTime()) ? new Date() : d,
     note: typeof args.note === "string" ? args.note : "",
     rawTranscript: transcript,
+  };
+}
+
+export type PendingBatch = { batchId: string; items: PendingTx[] };
+
+/** Amounts above this are saved only by touch, never by voice. */
+export const VOICE_CONFIRM_MAX = 5_000_000;
+
+const CONFIRM_RE = /(تأیید|تایید|ثبت\s*کن|ثبتش|ثبت\s*همه|آره|بله|باشه|اوکی|درسته|موافقم|okay|ok|yes)/i;
+/** True only if the user's own words (heard after the card appeared) contain a confirmation. */
+export function soundsLikeConfirmation(transcript: string): boolean {
+  return CONFIRM_RE.test(transcript);
+}
+
+export function buildBatch(args: ToolArgs, categories: Category[], accounts: Account[], transcript: string): PendingBatch {
+  const items = (Array.isArray(args.items) ? args.items : []).slice(0, 8);
+  return {
+    batchId: crypto.randomUUID(),
+    items: items.map((it, i) => buildPending(it, i, categories, accounts, transcript)),
   };
 }
