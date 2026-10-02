@@ -19,5 +19,7 @@ export const GROUP_LABEL: Record<AssetGroup, string> = { currency: "ارز", coi
 export const isAssetSymbol = (s: unknown): s is AssetSymbol => typeof s === "string" && s in ASSET_CATALOG;
 
 export const MIN_REFRESH_MS = 2 * 3600_000;
-export const AUTO_REFRESH_AGE_MS = 24 * 3600_000;
+export const AUTO_REFRESH_AGE_MS = 8 * 3600_000;
+/** Max successful price fetches (auto + manual) in any rolling 24h window. */
+export const DAILY_FETCH_CAP = 3;
 export const STALE_PRICE_HOURS = 48;
