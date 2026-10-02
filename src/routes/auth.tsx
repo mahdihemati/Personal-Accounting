@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Wallet } from "lucide-react";
@@ -6,14 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { signUpWithUsername, usernameToEmail } from "@/lib/auth.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "ورود | حسابداری شخصی" },
-      { name: "description", content: "ورود یا ثبت‌نام با ایمیل در اپ حسابداری شخصی فارسی." },
+      { name: "description", content: "ورود یا ثبت‌نام با نام کاربری در اپ حسابداری شخصی فارسی." },
       { property: "og:title", content: "ورود | حسابداری شخصی" },
-      { property: "og:description", content: "ورود یا ثبت‌نام با ایمیل در اپ حسابداری شخصی فارسی." },
+      { property: "og:description", content: "ورود یا ثبت‌نام با نام کاربری در اپ حسابداری شخصی فارسی." },
     ],
   }),
   component: AuthPage,
@@ -21,30 +23,34 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
+  const signUp = useServerFn(signUpWithUsername);
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    if (mode === "login") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      setBusy(false);
-      if (error) { toast.error("ایمیل یا رمز عبور اشتباه است"); return; }
-      navigate({ to: "/", replace: true });
-    } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: window.location.origin },
-      });
-      setBusy(false);
-      if (error) { toast.error(error.message); return; }
-      if (data.session) navigate({ to: "/", replace: true });
-      else toast.success("لینک تأیید به ایمیل شما ارسال شد");
+    const name = username.trim().toLowerCase();
+    if (mode === "signup") {
+      const result = await signUp({ data: { username: name, password } });
+      if (!result.ok) {
+        setBusy(false);
+        toast.error(result.error);
+        return;
+      }
     }
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameToEmail(name),
+      password,
+    });
+    setBusy(false);
+    if (error) {
+      toast.error(mode === "login" ? "نام کاربری یا رمز عبور اشتباه است" : "ورود خودکار ناموفق بود؛ دوباره وارد شوید");
+      return;
+    }
+    navigate({ to: "/", replace: true });
   }
 
   return (
@@ -58,12 +64,12 @@ function AuthPage() {
       </div>
       <form onSubmit={submit} className="space-y-5 rounded-3xl bg-card p-6">
         <div className="space-y-2">
-          <Label htmlFor="email">ایمیل</Label>
-          <Input id="email" type="email" dir="ltr" required value={email} onChange={(e) => setEmail(e.target.value)} className="h-12 rounded-xl" />
+          <Label htmlFor="username">نام کاربری</Label>
+          <Input id="username" dir="ltr" required autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 rounded-xl" />
         </div>
         <div className="space-y-2">
           <Label htmlFor="password">رمز عبور</Label>
-          <Input id="password" type="password" dir="ltr" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 rounded-xl" />
+          <Input id="password" type="password" dir="ltr" required minLength={6} autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 rounded-xl" />
         </div>
         <Button type="submit" disabled={busy} className="h-12 w-full rounded-xl text-base">
           {busy ? "لطفاً صبر کنید…" : mode === "login" ? "ورود" : "ثبت‌نام"}
