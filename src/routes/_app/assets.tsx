@@ -1,3 +1,4 @@
+import { Illustration } from "@/components/Illustration";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
@@ -72,7 +73,7 @@ function AssetsPage() {
   return (
     <main className="space-y-5 px-5 pt-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-bold">دارایی‌ها</h1>
+        <h1 className="text-xl font-bold flex items-center gap-2"><Illustration name="safe" size={48} />دارایی‌ها</h1>
         <Button size="icon" className="size-11 rounded-2xl" onClick={() => setEditing("new")} aria-label="دارایی جدید"><Plus /></Button>
       </header>
 
