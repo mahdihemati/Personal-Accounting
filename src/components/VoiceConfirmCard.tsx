@@ -80,8 +80,8 @@ export function VoiceConfirmCard({ batch, categories, accounts, onDecide, onChan
       </div>
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
       <div className="mt-3 flex gap-2">
-        <Button className="h-11 flex-1 rounded-xl" disabled={busy} onClick={() => go("confirm_all")}>{busy ? "در حال ثبت…" : "ثبت همه"}</Button>
-        <Button variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => go("cancel_all")}>لغو همه</Button>
+        <Button className="h-11 flex-1 rounded-xl" disabled={busy} onClick={() => go("confirm_all")}>{busy ? "در حال ثبت…" : "تأیید و ثبت"}</Button>
+        <Button variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => go("cancel_all")}>لغو</Button>
       </div>
     </div>
   );
