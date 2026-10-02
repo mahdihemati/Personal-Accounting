@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { PlanSettings } from "@/components/PlanSettings";
+import { LearningSettings } from "@/components/LearningSettings";
 import { InstallSection } from "@/components/Pwa";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -121,6 +122,7 @@ function SettingsPage() {
       </section>
 
       <PlanSettings />
+      <LearningSettings />
       <InstallSection />
 
       <Button variant="outline" onClick={signOut} className="h-12 w-full rounded-2xl text-expense">
