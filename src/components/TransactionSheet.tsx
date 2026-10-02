@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { JalaliDatePicker } from "@/components/JalaliDatePicker";
 import { supabase } from "@/integrations/supabase/client";
-import { budgetMonthKey, useAccounts, useCategories, useInvalidate, type Account, type Kind, type Transaction } from "@/lib/data";
+import { budgetMonthKey, useAccounts, useCategories, useInvalidate, type Account, type Kind, type Necessity, type Transaction } from "@/lib/data";
 import { groupDigits, parseAmount, toFa } from "@/lib/format";
 import { endOfMonth, startOfMonth } from "date-fns-jalali";
 
@@ -48,6 +48,8 @@ export function TransactionSheet({
   const [date, setDate] = useState(new Date());
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [override, setOverride] = useState<Necessity | null>(null);
+  const [showOverride, setShowOverride] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +60,8 @@ export function TransactionSheet({
     setAccountId(editing?.account_id ?? accounts[0]?.id ?? "");
     setDate(editing ? new Date(editing.occurred_at) : new Date());
     setNote(editing?.note ?? "");
+    setOverride(editing?.necessity_override ?? null);
+    setShowOverride(!!editing?.necessity_override);
   }, [open, editing, accounts]);
 
   const cats = categories.filter((c) => c.kind === kind);
@@ -77,6 +81,7 @@ export function TransactionSheet({
       to_account_id: isTransfer ? toAccountId : null,
       occurred_at: date.toISOString(),
       note: note.trim() || null,
+      necessity_override: kind === "expense" ? override : null,
     };
     const { error } = editing
       ? await supabase.from("transactions").update(row).eq("id", editing.id)
@@ -161,6 +166,27 @@ export function TransactionSheet({
           </div>
           {kind === "transfer" && accounts.length < 2 && (
             <p className="text-xs text-muted-foreground">برای انتقال حداقل دو حساب لازم است؛ از تنظیمات حساب جدید بسازید.</p>
+          )}
+          {kind === "expense" && (
+            <div className="rounded-xl bg-muted/50 px-3 py-2">
+              {!showOverride ? (
+                <button type="button" className="text-xs text-muted-foreground" onClick={() => setShowOverride(true)}>
+                  برای این تراکنش متفاوت باشد…
+                </button>
+              ) : (
+                <div className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">ضرورت این تراکنش</span>
+                  <div className="flex gap-1">
+                    {([null, "essential", "flexible"] as const).map((o) => (
+                      <button key={String(o)} type="button" onClick={() => setOverride(o)}
+                        className={`rounded-lg px-2.5 py-1 text-xs ${override === o ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+                        {o === null ? "مثل دسته" : o === "essential" ? "ضروری" : "غیرضروری"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <div className="space-y-2">
             <Label>تاریخ</Label>
