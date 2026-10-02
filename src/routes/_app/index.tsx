@@ -11,6 +11,7 @@ import { DailyBudgetCard, ForecastCard, ReviewCategoriesCard } from "@/component
 import { AlertsCard } from "@/components/AlertsCard";
 import { DecisionReviewCard } from "@/components/DecisionReviewCard";
 import { PurchaseCheckButton } from "@/components/PurchaseCheck";
+import { NetWorthCard, UnitConfirmCard } from "@/components/AssetCards";
 import { budgetTone, useAccounts, useBudgetProgress, useCategories, useTotals, useTransactions, type Transaction } from "@/lib/data";
 import { formatToman, formatTomanShort, toFa } from "@/lib/format";
 
@@ -81,6 +82,8 @@ function HomePage() {
       <PurchaseCheckButton />
       <WeeklyReportCard />
       <VitalsCards />
+      <UnitConfirmCard />
+      <NetWorthCard />
 
       <section className="grid grid-cols-2 gap-3">
         <div className="rounded-3xl bg-card p-5">
