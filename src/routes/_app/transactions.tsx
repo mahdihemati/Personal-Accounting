@@ -1,3 +1,4 @@
+import { Illustration } from "@/components/Illustration";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { addMonths, endOfMonth, format, startOfMonth } from "date-fns-jalali";
@@ -46,7 +47,7 @@ function TransactionsPage() {
   return (
     <main className="space-y-5 px-5 pt-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">تراکنش‌ها</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Illustration name="exchange" size={48} />تراکنش‌ها</h1>
         <Button size="icon" className="size-12 rounded-2xl" onClick={() => { setEditing(null); setSheet(true); }} aria-label="تراکنش جدید">
           <Plus />
         </Button>
