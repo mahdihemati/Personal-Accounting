@@ -54,7 +54,7 @@ export const deleteNavasanKey = createServerFn({ method: "POST" })
 
 export type RefreshResult =
   | { status: "ok"; updated_symbols: string[]; fetched_at: string; requests_used_30d: number; cap: number }
-  | { status: "skipped"; skipped: "too_soon" | "no_assets"; next_allowed_at?: string }
+  | { status: "skipped"; skipped: "too_soon" | "no_assets" | "daily_cap"; next_allowed_at?: string }
   | { status: "error"; code: string; message: string };
 
 export const refreshPrices = createServerFn({ method: "POST" })
