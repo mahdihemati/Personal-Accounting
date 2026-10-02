@@ -4,7 +4,7 @@ import { requireAuth } from "./auth-middleware";
 import { parseTelegramMessage, type ParsedItem } from "./telegram-parse.server";
 
 export type VoiceExtractResult =
-  | { ok: true; items: ParsedItem[]; question: string }
+  | { ok: true; items: (ParsedItem & { kind: "income" | "expense" })[]; question: string }
   | { ok: false; message: string };
 
 /**
@@ -29,7 +29,7 @@ export const extractVoiceTransactions = createServerFn({ method: "POST" })
         accounts: (accs ?? []) as { id: string; name: string }[],
         previous: null,
       });
-      return { ok: true, items: out.items, question: out.question };
+      return { ok: true, items: out.items.filter((i): i is ParsedItem & { kind: "income" | "expense" } => i.kind !== "transfer"), question: out.question };
     } catch (e) {
       console.error("voice extract failed", e);
       return { ok: false, message: e instanceof Error ? e.message : "استخراج تراکنش ممکن نشد." };
