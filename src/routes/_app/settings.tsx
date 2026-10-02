@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ChevronLeft, LogOut, Plus, Trash2 } from "lucide-react";
+import { BookOpen, ChevronLeft, LogOut, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,13 +68,22 @@ function SettingsPage() {
     <main className="space-y-6 px-5 pt-8">
       <h1 className="text-2xl font-bold">تنظیمات</h1>
 
-      <Link to="/budgets" className="flex items-center justify-between rounded-3xl bg-card px-5 py-4 hover:bg-muted/60">
-        <span>
-          <span className="block font-semibold">بودجه‌ی ماهانه</span>
-          <span className="text-xs text-muted-foreground">سقف هزینه برای هر دسته</span>
-        </span>
-        <ChevronLeft className="text-muted-foreground" />
-      </Link>
+      <div className="grid grid-cols-2 gap-3">
+        <Link to="/learn" className="flex min-h-28 flex-col justify-between rounded-3xl bg-card p-4 hover:bg-muted/60">
+          <BookOpen className="size-6 text-primary" />
+          <span>
+            <span className="block font-semibold">یادگیری مالی</span>
+            <span className="mt-1 block text-xs text-muted-foreground">آموزش‌های کوتاه و کاربردی</span>
+          </span>
+        </Link>
+        <Link to="/budgets" className="flex min-h-28 flex-col justify-between rounded-3xl bg-card p-4 hover:bg-muted/60">
+          <ChevronLeft className="size-6 text-primary" />
+          <span>
+            <span className="block font-semibold">بودجه‌ی ماهانه</span>
+            <span className="mt-1 block text-xs text-muted-foreground">سقف هزینه برای هر دسته</span>
+          </span>
+        </Link>
+      </div>
 
       <section className="rounded-3xl bg-card p-2">
         <div className="flex items-center justify-between px-3 pt-2">
