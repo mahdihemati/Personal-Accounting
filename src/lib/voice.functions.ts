@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireAuth } from "./auth-middleware";
 import { DEFAULT_VOICE_PREFS, GEMINI_LIVE_MODEL, voiceInstruction, type VoicePrefs } from "./ai-config";
+import { METRIC_TOOL_DECLARATIONS, TOOL_DECLARATIONS } from "./voice/declarations";
 
 export type VoiceTokenResult =
   | { status: "ok"; token: string; model: string; prefs: VoicePrefs }
@@ -80,6 +81,10 @@ export const getVoiceToken = createServerFn({ method: "POST" })
           generationConfig: { responseModalities: ["AUDIO"] },
           sessionResumption: {},
           systemInstruction: { parts: [{ text: voiceInstruction(prefs.reply_length) }] },
+          // Lock the action list into the token so every session can open the confirmation window.
+          tools: [{ functionDeclarations: [...TOOL_DECLARATIONS, ...METRIC_TOOL_DECLARATIONS] }],
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
         },
       }),
     });
