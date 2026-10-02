@@ -4,6 +4,7 @@ import { format as gFormat } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { DEFAULT_VOICE, DEFAULT_VOICE_PREFS, GEMINI_LIVE_API_VERSION, GEMINI_LIVE_MODEL, voiceInstruction, type VoicePrefs } from "@/lib/ai-config";
 import { getVoiceToken } from "@/lib/voice.functions";
+import { extractVoiceTransactions } from "@/lib/voice-extract.functions";
 import { jDate } from "@/lib/format";
 import type { Account, Category } from "@/lib/data";
 import { TOOL_DECLARATIONS, VOICE_CONFIRM_MAX, buildBatch, runReadTool, type PendingBatch, type PendingTx, type ToolArgs } from "./tools";
@@ -59,7 +60,21 @@ function makeState() {
     prefs: DEFAULT_VOICE_PREFS as VoicePrefs,
     toolThisTurn: false,
     nudged: false,
+    nudgeSource: "",
+    fallbackTimer: null as ReturnType<typeof setTimeout> | null,
+    extracting: false,
   };
+}
+
+/** Assistant asked for confirmation by voice. */
+const ASK_RE = /(تأیید|تایید|ثبت\s*(ش\s*)?کنم|ثبت\s*بشه|ثبت\s*شود)/;
+/** Assistant claimed it saved something (it can't — only the window's button saves). */
+const CLAIM_RE = /(ثبت\s*(کردم|شد|گردید)|ذخیره\s*(کردم|شد)|اضافه\s*(کردم|شد)|وارد\s*کردم|یادداشت\s*کردم)/;
+const AMOUNT_RE = /([0-9۰-۹٠-٩]|هزار|میلیون|تومن|تومان|ریال|صد|دویست|سیصد|پانصد|پونصد)/;
+const MONEY_VERB_RE = /(خرج|هزینه|خرید|خریدم|دادم|پرداخت|پول|قسط|اجاره|قبض|درآمد|حقوق|واریز|گرفتم|فروختم|دریافت)/;
+/** The user's words look like a transaction statement (an amount plus a money verb). */
+function looksLikeTransaction(text: string) {
+  return AMOUNT_RE.test(text) && MONEY_VERB_RE.test(text);
 }
 
 export function useVoiceSession() {
@@ -194,6 +209,51 @@ export function useVoiceSession() {
 
   const updatePending = useCallback((b: PendingBatch) => { r.current.pending = b; setPending(b); }, []);
 
+  const clearFallback = useCallback(() => {
+    const s = r.current;
+    if (s.fallbackTimer) { clearTimeout(s.fallbackTimer); s.fallbackTimer = null; }
+  }, []);
+
+  /** Build the confirmation window from the user's words with the text model (never saves). */
+  const runFallback = useCallback(async (text: string) => {
+    const s = r.current;
+    clearFallback();
+    s.nudged = false;
+    if (!text.trim() || s.extracting || s.pending || s.closed) return;
+    s.extracting = true;
+    try {
+      const res = await extractVoiceTransactions({ data: { text } });
+      if (s.closed || s.pending) return;
+      if (!res.ok) {
+        sendText(`[سیستم] پنجره‌ی تأیید باز نشد (${res.message}). کوتاه به کاربر بگو چیزی ثبت نشده و دوباره بگوید.`, true);
+        return;
+      }
+      if (!res.items.length) {
+        if (res.question) sendText(`[سیستم] چیزی ثبت نشده. برای ثبت این را از کاربر بپرس: ${res.question}`, true);
+        return;
+      }
+      const b: PendingBatch = {
+        batchId: crypto.randomUUID(),
+        items: res.items.map((it, idx) => {
+          const d = new Date(`${it.date}T12:00:00`);
+          return {
+            idx, amount: it.amount, kind: it.kind, categoryId: it.category_id, accountId: it.account_id,
+            occurredAt: isNaN(d.getTime()) ? new Date() : d, note: it.note, rawTranscript: text,
+            needsFix: !it.amount || !it.category_id || !it.account_id,
+          };
+        }),
+      };
+      s.savedIdx = new Set();
+      s.heardSinceCard = "";
+      setBatch(b);
+      sendText(`[سیستم] پنجره‌ی تأیید با ${b.items.length} تراکنش باز شد و هنوز چیزی ثبت نشده. فقط کوتاه بگو «پنجره‌ی تأیید را باز کردم، بررسی کنید و روی تأیید بزنید».`, true);
+    } catch (e) {
+      console.error("[voice] fallback failed", e);
+    } finally {
+      s.extracting = false;
+    }
+  }, [clearFallback, sendText, setBatch]);
+
   const handleMessage = useCallback(async (msg: LiveServerMessage) => {
     const s = r.current;
     if (msg.setupComplete) {
@@ -221,12 +281,28 @@ export function useVoiceSession() {
         if (part.inlineData?.data && part.inlineData.mimeType?.startsWith("audio/")) playChunk(part.inlineData.data);
       }
       if (sc.turnComplete) {
-        // Model asked for confirmation by voice without calling the tool: nudge it once per turn.
-        if (!s.toolThisTurn && !s.pending && !s.nudged && /(تأیید|تایید|ثبت\s*(ش\s*)?کنم|ثبت\s*بشه|ثبت\s*شود)/.test(s.turnAssistant)) {
-          s.nudged = true;
-          console.info("[voice] asked to confirm without propose_transactions; nudging");
-          sendText("[سیستم] با صدا تأیید نگیر. همین حالا propose_transactions را با تراکنش‌هایی که کاربر گفت صدا بزن تا پنجره‌ی تأیید باز شود.", true);
-        } else if (s.turnUser) s.nudged = false;
+        const said = s.turnUser || s.lastTurnUser;
+        if (s.toolThisTurn) {
+          s.nudged = false;
+          clearFallback();
+        } else if (!s.pending && !s.extracting) {
+          const flagged = ASK_RE.test(s.turnAssistant) || CLAIM_RE.test(s.turnAssistant) || (!!s.turnUser && looksLikeTransaction(s.turnUser));
+          if (s.nudged && !s.turnUser) {
+            // Reminder answered without opening the window: build it from the user's words ourselves.
+            console.info("[voice] still no propose_transactions after nudge; using fallback");
+            void runFallback(s.nudgeSource);
+          } else if (flagged && said && looksLikeTransaction(said + " " + s.turnAssistant)) {
+            s.nudged = true;
+            s.nudgeSource = said;
+            console.info("[voice] transaction mentioned without propose_transactions; nudging");
+            sendText("[سیستم] هیچ تراکنشی ثبت نشده و پنجره‌ی تأیید باز نیست. همین حالا propose_transactions را با تراکنش‌هایی که کاربر گفت صدا بزن. نگو «ثبت کردم».", true);
+            clearFallback();
+            s.fallbackTimer = setTimeout(() => {
+              const st = r.current;
+              if (st.nudged && !st.pending && !st.closed) void runFallback(st.nudgeSource);
+            }, 6000);
+          } else if (s.turnUser) s.nudged = false;
+        }
         s.toolThisTurn = false;
         if (s.turnUser) s.lastTurnUser = s.turnUser;
         s.turnUser = "";
@@ -243,6 +319,8 @@ export function useVoiceSession() {
         console.info("[voice] tool call", c.name, Array.isArray((args as { items?: unknown[] }).items) ? (args as { items: unknown[] }).items.length : "");
         try {
           if (c.name === "propose_transactions") {
+            clearFallback();
+            s.nudged = false;
             const b = buildBatch(args, s.categories, s.accounts, s.turnUser || s.lastTurnUser);
             s.savedIdx = new Set();
             s.heardSinceCard = "";
@@ -268,7 +346,7 @@ export function useVoiceSession() {
       s.session?.sendToolResponse({ functionResponses });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolve, setBatch, playChunk, sendContext, stopPlayback]);
+  }, [resolve, setBatch, playChunk, sendContext, stopPlayback, clearFallback, runFallback]);
 
   const connect = useCallback(async (token: string) => {
     const s = r.current;
@@ -354,6 +432,7 @@ export function useVoiceSession() {
   const cleanup = useCallback(() => {
     const s = r.current;
     s.closed = true;
+    if (s.fallbackTimer) { clearTimeout(s.fallbackTimer); s.fallbackTimer = null; }
     try { s.session?.close(); } catch { /* ignore */ }
     s.session = null;
     s.stream?.getTracks().forEach((t) => t.stop());
