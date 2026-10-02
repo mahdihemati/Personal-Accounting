@@ -14,8 +14,11 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppBudgetsRouteImport } from './routes/_app/budgets'
 import { Route as AppInsightsRouteImport } from './routes/_app/insights'
+import { Route as AppLearnRouteImport } from './routes/_app/learn'
+import { Route as AppReportRouteImport } from './routes/_app/report'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
+import { Route as AppLearnSlugRouteImport } from './routes/_app/learn.$slug'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -41,6 +44,16 @@ const AppInsightsRoute = AppInsightsRouteImport.update({
   path: '/insights',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLearnRoute = AppLearnRouteImport.update({
+  id: '/learn',
+  path: '/learn',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReportRoute = AppReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -51,22 +64,33 @@ const AppTransactionsRoute = AppTransactionsRouteImport.update({
   path: '/transactions',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLearnSlugRoute = AppLearnSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => AppLearnRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/auth': typeof AuthRoute
   '/budgets': typeof AppBudgetsRoute
   '/insights': typeof AppInsightsRoute
+  '/learn': typeof AppLearnRouteWithChildren
+  '/report': typeof AppReportRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
+  '/learn/$slug': typeof AppLearnSlugRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/budgets': typeof AppBudgetsRoute
   '/insights': typeof AppInsightsRoute
+  '/learn': typeof AppLearnRouteWithChildren
+  '/report': typeof AppReportRoute
   '/settings': typeof AppSettingsRoute
   '/transactions': typeof AppTransactionsRoute
   '/': typeof AppIndexRoute
+  '/learn/$slug': typeof AppLearnSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -74,25 +98,48 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_app/budgets': typeof AppBudgetsRoute
   '/_app/insights': typeof AppInsightsRoute
+  '/_app/learn': typeof AppLearnRouteWithChildren
+  '/_app/report': typeof AppReportRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/transactions': typeof AppTransactionsRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/learn/$slug': typeof AppLearnSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/auth' | '/budgets' | '/insights' | '/settings' | '/transactions'
+    | '/'
+    | '/auth'
+    | '/budgets'
+    | '/insights'
+    | '/learn'
+    | '/report'
+    | '/settings'
+    | '/transactions'
+    | '/learn/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/budgets' | '/insights' | '/settings' | '/transactions' | '/'
+  to:
+    | '/auth'
+    | '/budgets'
+    | '/insights'
+    | '/learn'
+    | '/report'
+    | '/settings'
+    | '/transactions'
+    | '/'
+    | '/learn/$slug'
   id:
     | '__root__'
     | '/_app'
     | '/auth'
     | '/_app/budgets'
     | '/_app/insights'
+    | '/_app/learn'
+    | '/_app/report'
     | '/_app/settings'
     | '/_app/transactions'
     | '/_app/'
+    | '/_app/learn/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -137,6 +184,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInsightsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/learn': {
+      id: '/_app/learn'
+      path: '/learn'
+      fullPath: '/learn'
+      preLoaderRoute: typeof AppLearnRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/report': {
+      id: '/_app/report'
+      path: '/report'
+      fullPath: '/report'
+      preLoaderRoute: typeof AppReportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/settings': {
       id: '/_app/settings'
       path: '/settings'
@@ -151,12 +212,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTransactionsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/learn/$slug': {
+      id: '/_app/learn/$slug'
+      path: '/$slug'
+      fullPath: '/learn/$slug'
+      preLoaderRoute: typeof AppLearnSlugRouteImport
+      parentRoute: typeof AppLearnRoute
+    }
   }
 }
+
+interface AppLearnRouteChildren {
+  AppLearnSlugRoute: typeof AppLearnSlugRoute
+}
+
+const AppLearnRouteChildren: AppLearnRouteChildren = {
+  AppLearnSlugRoute: AppLearnSlugRoute,
+}
+
+const AppLearnRouteWithChildren = AppLearnRoute._addFileChildren(
+  AppLearnRouteChildren,
+)
 
 interface AppRouteChildren {
   AppBudgetsRoute: typeof AppBudgetsRoute
   AppInsightsRoute: typeof AppInsightsRoute
+  AppLearnRoute: typeof AppLearnRouteWithChildren
+  AppReportRoute: typeof AppReportRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppTransactionsRoute: typeof AppTransactionsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -165,6 +247,8 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppBudgetsRoute: AppBudgetsRoute,
   AppInsightsRoute: AppInsightsRoute,
+  AppLearnRoute: AppLearnRouteWithChildren,
+  AppReportRoute: AppReportRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppTransactionsRoute: AppTransactionsRoute,
   AppIndexRoute: AppIndexRoute,
