@@ -18,7 +18,8 @@ export function VoiceConfirmCard({ batch, categories, accounts, onDecide, onChan
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [open, setOpen] = useState<number | null>(null);
+  const [open, setOpen] = useState<number | null>(() => { const i = batch.items.findIndex((p) => p.needsFix); return i >= 0 ? i : null; });
+  const invalid = batch.items.some((p) => !p.amount || !p.accountId || !p.categoryId);
   const total = batch.items.reduce((s, p) => s + (p.kind === "income" ? p.amount : -p.amount), 0);
 
   async function go(action: "confirm_all" | "cancel_all") {
@@ -50,6 +51,7 @@ export function VoiceConfirmCard({ batch, categories, accounts, onDecide, onChan
                   <span className="block truncate text-xs text-muted-foreground">
                     {cat?.name ?? "بدون دسته"} · {acc?.name ?? "؟"}{p.note ? ` · ${p.note}` : ""}
                   </span>
+                  {p.needsFix && <span className="block text-[11px] text-warning">لطفاً مبلغ، دسته و حساب را بررسی کن</span>}
                   {p.amount > VOICE_CONFIRM_MAX && <span className="block text-[11px] text-warning">فقط با لمس ثبت می‌شود</span>}
                 </button>
                 <Button size="icon" variant="ghost" aria-label="حذف ردیف" onClick={() => void onDecide("remove_item", { index: i })}>
@@ -80,7 +82,7 @@ export function VoiceConfirmCard({ batch, categories, accounts, onDecide, onChan
       </div>
       {err && <p className="mt-2 text-sm text-destructive">{err}</p>}
       <div className="mt-3 flex gap-2">
-        <Button className="h-11 flex-1 rounded-xl" disabled={busy} onClick={() => go("confirm_all")}>{busy ? "در حال ثبت…" : "تأیید و ثبت"}</Button>
+        <Button className="h-11 flex-1 rounded-xl" disabled={busy || invalid} onClick={() => go("confirm_all")}>{busy ? "در حال ثبت…" : "تأیید و ثبت"}</Button>
         <Button variant="outline" className="h-11 rounded-xl" disabled={busy} onClick={() => go("cancel_all")}>لغو</Button>
       </div>
     </div>
