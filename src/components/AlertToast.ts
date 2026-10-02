@@ -8,7 +8,8 @@ import { formatToman, toFa } from "@/lib/format";
 
 export function showAlertToasts(alerts: AlertRow[], qc: QueryClient) {
   for (const a of alerts) {
-    toast(alertMessage(a, formatToman, toFa), {
+    toast.warning("هشدار هوشمند", {
+      description: alertMessage(a, formatToman, toFa),
       duration: 12000,
       action: {
         label: a.kind === "possible_duplicate" ? "عمدی بود" : "عمدی بود",
