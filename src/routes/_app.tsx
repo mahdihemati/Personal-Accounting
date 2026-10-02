@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Home, ListOrdered, Mic, PieChart, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { VoiceOverlay } from "@/components/VoiceOverlay";
@@ -30,6 +31,16 @@ const tabs = [
 
 function AppShell() {
   const [voice, setVoice] = useState(false);
+  const [voiceStart, setVoiceStart] = useState(false);
+  // "?voice=1" (home-screen shortcut): show a big Start button — browsers require a tap before using the mic.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("voice") === "1") {
+      setVoiceStart(true);
+      url.searchParams.delete("voice");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+  }, []);
   return (
     <div className="mx-auto min-h-screen max-w-lg pb-32">
       <Outlet />
@@ -49,6 +60,19 @@ function AppShell() {
           {tabs.slice(2).map((t) => <Tab key={t.to} {...t} />)}
         </div>
       </nav>
+      {voiceStart && !voice && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background/95 px-6 backdrop-blur-md">
+          <p className="text-lg font-semibold">ثبت صوتی</p>
+          <button
+            type="button"
+            onClick={() => { setVoiceStart(false); setVoice(true); }}
+            className="grid size-40 place-items-center rounded-full bg-primary text-2xl font-bold text-primary-foreground shadow-fab active:scale-95"
+          >
+            شروع
+          </button>
+          <Button variant="ghost" onClick={() => setVoiceStart(false)}>بستن</Button>
+        </div>
+      )}
       {voice && <VoiceOverlay onClose={() => setVoice(false)} />}
     </div>
   );
