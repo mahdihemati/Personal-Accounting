@@ -8,12 +8,33 @@ export type Category = { id: string; name: string; kind: Kind; icon: string | nu
 export type Transaction = {
   id: string;
   account_id: string;
+  to_account_id: string | null;
   category_id: string | null;
   amount: number;
   kind: Kind | "transfer";
   occurred_at: string;
   note: string | null;
 };
+
+/** Live balance per account: initial + income − expense ± transfers. */
+export function useAccountBalances() {
+  const { data: accounts = [] } = useAccounts();
+  const q = useQuery({
+    queryKey: ["transactions", "balances"],
+    queryFn: async () =>
+      unwrap<Pick<Transaction, "amount" | "kind" | "account_id" | "to_account_id">[]>(
+        await supabase.from("transactions").select("amount,kind,account_id,to_account_id"),
+      ),
+  });
+  const map = new Map<string, number>(accounts.map((a) => [a.id, Number(a.initial_balance)]));
+  for (const t of q.data ?? []) {
+    const add = (id: string | null, v: number) => { if (id && map.has(id)) map.set(id, map.get(id)! + v); };
+    if (t.kind === "income") add(t.account_id, t.amount);
+    else if (t.kind === "expense") add(t.account_id, -t.amount);
+    else { add(t.account_id, -t.amount); add(t.to_account_id, t.amount); }
+  }
+  return map;
+}
 
 export const ACCOUNT_TYPE_LABEL: Record<AccountType, string> = { cash: "نقد", card: "کارت", wallet: "کیف پول" };
 
