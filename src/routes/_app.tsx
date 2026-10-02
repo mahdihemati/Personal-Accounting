@@ -14,6 +14,10 @@ let defaultsEnsuredFor: string | null = null;
 export const Route = createFileRoute("/_app")({
   ssr: false,
   beforeLoad: async () => {
+    // "Remember me" off → session ends when the browser/app is closed.
+    if (localStorage.getItem("remember-me") === "0" && !sessionStorage.getItem("session-alive")) {
+      await supabase.auth.signOut({ scope: "local" });
+    }
     const { data } = await supabase.auth.getSession();
     const user = data.session?.user;
     if (!user) throw redirect({ to: "/auth" });
