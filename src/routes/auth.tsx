@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Illustration } from "@/components/Illustration";
+import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +66,9 @@ function AuthPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center px-6">
       <div className="mb-10 flex flex-col items-center gap-4 text-center">
-        <Illustration name="money" size={112} />
+        <div className="flex size-16 items-center justify-center rounded-3xl bg-primary/15 text-primary">
+          <Wallet className="size-8" />
+        </div>
         <h1 className="text-2xl font-bold">حسابداری شخصی</h1>
         <p className="text-sm text-muted-foreground">دخل و خرجت را ساده نگه دار</p>
       </div>
