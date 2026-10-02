@@ -22,6 +22,7 @@ import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSimulatorRouteImport } from './routes/_app/simulator'
 import { Route as AppTransactionsRouteImport } from './routes/_app/transactions'
 import { Route as AppLearnSlugRouteImport } from './routes/_app/learn.$slug'
+import { Route as ApiPublicTelegramIdRouteImport } from './routes/api/public/telegram/$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -87,6 +88,11 @@ const AppLearnSlugRoute = AppLearnSlugRouteImport.update({
   path: '/$slug',
   getParentRoute: () => AppLearnRoute,
 } as any)
+const ApiPublicTelegramIdRoute = ApiPublicTelegramIdRouteImport.update({
+  id: '/api/public/telegram/$id',
+  path: '/api/public/telegram/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/simulator': typeof AppSimulatorRoute
   '/transactions': typeof AppTransactionsRoute
   '/learn/$slug': typeof AppLearnSlugRoute
+  '/api/public/telegram/$id': typeof ApiPublicTelegramIdRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/transactions': typeof AppTransactionsRoute
   '/': typeof AppIndexRoute
   '/learn/$slug': typeof AppLearnSlugRoute
+  '/api/public/telegram/$id': typeof ApiPublicTelegramIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/_app/transactions': typeof AppTransactionsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/learn/$slug': typeof AppLearnSlugRoute
+  '/api/public/telegram/$id': typeof ApiPublicTelegramIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/simulator'
     | '/transactions'
     | '/learn/$slug'
+    | '/api/public/telegram/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/transactions'
     | '/'
     | '/learn/$slug'
+    | '/api/public/telegram/$id'
   id:
     | '__root__'
     | '/_app'
@@ -176,11 +187,13 @@ export interface FileRouteTypes {
     | '/_app/transactions'
     | '/_app/'
     | '/_app/learn/$slug'
+    | '/api/public/telegram/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicTelegramIdRoute: typeof ApiPublicTelegramIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -276,6 +289,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLearnSlugRouteImport
       parentRoute: typeof AppLearnRoute
     }
+    '/api/public/telegram/$id': {
+      id: '/api/public/telegram/$id'
+      path: '/api/public/telegram/$id'
+      fullPath: '/api/public/telegram/$id'
+      preLoaderRoute: typeof ApiPublicTelegramIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -322,6 +342,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicTelegramIdRoute: ApiPublicTelegramIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
