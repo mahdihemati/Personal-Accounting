@@ -54,6 +54,10 @@ function AssetsPage() {
     try {
       const r = await refresh({ data: { trigger: "manual" } });
       if (r.status === "ok") toast.success(`قیمت ${toFa(r.updated_symbols.length)} مورد به‌روز شد`);
+      else if (r.status === "skipped" && r.skipped === "daily_cap") {
+        const t = r.next_allowed_at ? new Date(r.next_allowed_at).toLocaleTimeString("fa-IR", { hour: "2-digit", minute: "2-digit" }) : "";
+        toast.message(`امروز به سقف ۳ به‌روزرسانی رسیدی${t ? `؛ به‌روزرسانی بعدی از ساعت ${t}` : ""}`);
+      }
       else if (r.status === "skipped") toast.message("هنوز زمان به‌روزرسانی بعدی نرسیده");
       else toast.error(r.message);
     } catch { toast.error("دریافت قیمت ممکن نشد."); }
