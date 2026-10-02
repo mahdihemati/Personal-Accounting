@@ -14,3 +14,4 @@
 
 - Backend is the user's own external Supabase project (not Lovable Cloud); browser client in `src/integrations/supabase/client.ts` uses the publishable key, server admin client reads `EXT_DB_*` secrets — `SUPABASE_*` secret names are reserved by the platform.
 - Every change is committed to GitHub `mahdihemati/Personal-Accounting` branch `main` via the Contents API using `scripts/github-sync.sh` and `GITHUB_FINE_GRAINED_PERSONAL_ACCESS_TOKEN` — user requires direct API commits, never the GitHub integration.
+- Schema changes are written as numbered SQL files in `db/` and applied directly to the external database with psql — the platform migration tool only works with Lovable Cloud.
