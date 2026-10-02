@@ -11,7 +11,7 @@ AUTH="Authorization: Bearer $GITHUB_FINE_GRAINED_PERSONAL_ACCESS_TOKEN"
 
 if [ "$#" -eq 0 ]; then
   mapfile -t FILES < <(find . -type f \
-    -not -path './node_modules/*' -not -path './.git/*' -not -path './dist/*' \
+    -not -path './node_modules/*' -not -path './.git' -not -path './.git/*' -not -path './.workspace/*' -not -path './dist/*' \
     -not -path './.output/*' -not -path './.tanstack/*' -not -path './.wrangler/*' \
     -not -name '.env*' | sed 's|^\./||' | sort)
 else
