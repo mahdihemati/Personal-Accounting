@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useVoiceSession, type VoiceStatus } from "@/lib/voice/useVoiceSession";
 import { VoiceConfirmCard } from "@/components/VoiceConfirmCard";
-import type { PendingTx } from "@/lib/voice/tools";
+import type { PendingBatch } from "@/lib/voice/tools";
 
 const BARS = 28;
 const STATUS_LABEL: Record<VoiceStatus, string> = {
@@ -37,9 +37,13 @@ export function VoiceOverlay({ onClose }: { onClose: () => void }) {
     return () => cancelAnimationFrame(raf);
   }, [v.getLevel]);
 
-  async function decide(d: "confirm" | "cancel", p?: PendingTx) {
-    const res = await v.decide(d, p);
-    if (res.ok && d === "confirm") void qc.invalidateQueries({ queryKey: ["transactions"] });
+  useEffect(() => {
+    v.onSaved.current = () => void qc.invalidateQueries({ queryKey: ["transactions"] });
+  }, [v.onSaved, qc]);
+
+  async function decide(action: "confirm_all" | "cancel_all" | "remove_item", opts?: { index?: number; edited?: PendingBatch }) {
+    const res = await v.decide(action, opts);
+    if (res.ok && action === "confirm_all") void qc.invalidateQueries({ queryKey: ["transactions"] });
     return res;
   }
 
@@ -73,7 +77,7 @@ export function VoiceOverlay({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex w-full max-w-lg flex-col items-center gap-3">
         {v.pending && (
-          <VoiceConfirmCard pending={v.pending} categories={v.categories()} accounts={v.accounts()}
+          <VoiceConfirmCard batch={v.pending} categories={v.categories()} accounts={v.accounts()}
             onDecide={decide} onChange={v.updatePending} />
         )}
         <Button variant="secondary" onClick={onClose} className="h-12 w-full max-w-xs rounded-full">پایان</Button>
