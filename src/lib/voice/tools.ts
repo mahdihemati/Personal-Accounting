@@ -35,11 +35,11 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
   },
   {
     name: "resolve_pending_transaction",
-    description: "وقتی کاربر درباره‌ی کارت تأیید با صدا تصمیم گرفت: confirm_all (ثبت همه)، cancel_all (لغو همه)، remove_item (حذف یک ردیف با index از صفر).",
+    description: "لغو همه (cancel_all) یا حذف یک ردیف (remove_item با index از صفر) از پنجره‌ی تأیید. ثبت فقط با لمس دکمه است.",
     parameters: {
       type: Type.OBJECT,
       properties: {
-        action: { type: Type.STRING, enum: ["confirm_all", "cancel_all", "remove_item"] },
+        action: { type: Type.STRING, enum: ["cancel_all", "remove_item"] },
         index: { type: Type.INTEGER, description: "شماره‌ی ردیف از صفر؛ فقط برای remove_item" },
       },
       required: ["action"],
