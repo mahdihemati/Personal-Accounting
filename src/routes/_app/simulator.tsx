@@ -1,4 +1,3 @@
-import { Illustration } from "@/components/Illustration";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -57,7 +56,7 @@ function SimulatorPage() {
     <main className="space-y-5 px-5 pt-8">
       <header className="flex items-center gap-2">
         <Link to="/insights" aria-label="بازگشت" className="text-muted-foreground"><ChevronRight /></Link>
-        <h1 className="text-2xl font-bold flex items-center gap-2"><Illustration name="calculator" size={48} />شبیه‌ساز «اگر...»</h1>
+        <h1 className="text-2xl font-bold">شبیه‌ساز «اگر...»</h1>
       </header>
 
       {drafts.map((d, i) => (
