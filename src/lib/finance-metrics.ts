@@ -179,6 +179,7 @@ import { findAnomalies } from "./metrics/anomalies";
 import { simulate, simulationBaseline, type SimParams } from "./metrics/simulate";
 import { checkPurchase } from "./metrics/purchase";
 import { withSpoken } from "./metrics/spoken-amount";
+import { assetsSummary } from "./metrics/assets";
 
 export type MetricsRequest =
   | { mode: "vitals"; params?: Record<string, never> }
@@ -190,7 +191,8 @@ export type MetricsRequest =
   | { mode: "search_transactions"; params: { period?: PeriodKey; category_id?: string; min_amount?: number; text?: string; limit?: number } }
   | { mode: "anomalies"; params: { transaction_ids?: string[] } }
   | { mode: "simulate"; params: SimParams }
-  | { mode: "check_purchase"; params: { amount: number; category_id?: string | null } };
+  | { mode: "check_purchase"; params: { amount: number; category_id?: string | null } }
+  | { mode: "assets_summary"; params?: Record<string, never> };
 
 function planOf(d: MetricsData) {
   const s = d.settings;
@@ -227,6 +229,8 @@ export function runMetrics(req: MetricsRequest, d: MetricsData, now = new Date()
         liquid_balance: v.liquid_balance, essential_monthly: v.essential_monthly, emergency_target_months: v.emergency_fund_target_months,
       }));
     }
+    case "assets_summary":
+      return withSpoken(assetsSummary(d.assets ?? [], d.prices ?? [], d.integration ?? null, vitalsOf(d, now).liquid_balance, now));
     case "check_purchase": {
       const v = vitalsOf(d, now);
       return withSpoken(checkPurchase(req.params, {
