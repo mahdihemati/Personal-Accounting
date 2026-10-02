@@ -1,3 +1,4 @@
+import { Illustration } from "@/components/Illustration";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { addMonths, endOfMonth, format, startOfMonth } from "date-fns-jalali";
@@ -66,7 +67,7 @@ function BudgetsPage() {
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Link to="/settings" aria-label="بازگشت" className="text-muted-foreground"><ChevronRight /></Link>
-          <h1 className="text-2xl font-bold">بودجه‌ی ماهانه</h1>
+          <h1 className="text-2xl font-bold flex items-center gap-2"><Illustration name="jar" size={48} />بودجه‌ی ماهانه</h1>
         </div>
         <Button size="icon" className="size-12 rounded-2xl" aria-label="بودجه‌ی جدید" onClick={() => setEditing({})}>
           <Plus />
