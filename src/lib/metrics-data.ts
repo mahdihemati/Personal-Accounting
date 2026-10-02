@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { runMetrics } from "./finance-metrics";
 import type { AlertRow, DecisionRow, MetricsData } from "./metrics/types";
+import type { AssetRow, IntegrationRow, PriceRow } from "./metrics/assets";
 
 function check<T>(r: { data: T | null; error: { message: string } | null }): T {
   if (r.error) throw new Error(r.error.message);
@@ -10,13 +11,16 @@ function check<T>(r: { data: T | null; error: { message: string } | null }): T {
 }
 
 export async function loadMetricsData(): Promise<MetricsData> {
-  const [acc, tx, cat, set, dec, al] = await Promise.all([
+  const [acc, tx, cat, set, dec, al, ast, pr, integ] = await Promise.all([
     supabase.from("accounts").select("id,name,initial_balance"),
     supabase.from("transactions").select("id,amount,kind,occurred_at,created_at,category_id,account_id,note,necessity_override,exclude_from_baseline"),
     supabase.from("categories").select("id,name,kind,necessity,alerts_muted"),
     supabase.from("user_settings").select("*").maybeSingle(),
     supabase.from("decisions").select("*").order("decided_at", { ascending: false }),
     supabase.from("alerts").select("*").order("created_at", { ascending: false }).limit(500),
+    supabase.from("assets").select("id,symbol,quantity,label,acquired_on,cost_basis_toman").order("created_at"),
+    supabase.from("price_cache").select("symbol,value_raw,source_timestamp,fetched_at"),
+    supabase.from("user_integrations").select("key_last4,key_status,expires_on,monthly_request_cap,unit_divisor,unit_confirmed").maybeSingle(),
   ]);
   if (set.error) throw new Error(set.error.message);
   return {
@@ -26,6 +30,10 @@ export async function loadMetricsData(): Promise<MetricsData> {
     settings: (set.data ?? null) as MetricsData["settings"],
     decisions: (check(dec) as DecisionRow[]).map((d) => ({ ...d, amount_toman: Number(d.amount_toman) })),
     alerts: check(al) as AlertRow[],
+    // Phase 7 tables: tolerate failures so the rest of the app keeps working.
+    assets: ((ast.data ?? []) as AssetRow[]).map((a) => ({ ...a, quantity: Number(a.quantity), cost_basis_toman: a.cost_basis_toman == null ? null : Number(a.cost_basis_toman) })),
+    prices: ((pr.data ?? []) as PriceRow[]).map((p) => ({ ...p, value_raw: Number(p.value_raw) })),
+    integration: (integ.data ?? null) as IntegrationRow | null,
   };
 }
 
