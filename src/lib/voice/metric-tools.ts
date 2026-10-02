@@ -86,6 +86,11 @@ export const METRIC_TOOL_DECLARATIONS: FunctionDeclaration[] = [
     description: "هشدارهای تازه‌ی هزینه‌ی غیرمعمول (هزینه‌ی بزرگ، تکراری احتمالی، خرج تند یک دسته).",
     parameters: { type: Type.OBJECT, properties: {} },
   },
+  {
+    name: "get_assets_summary",
+    description: "دارایی‌های غیرنقدی (ارز، سکه، طلا): جمع ارزش، تفکیک نوع، سن قیمت‌ها (ساعت) و ثروت خالص تخمینی بدون احتساب بدهی. مقدار null یعنی قیمت در دسترس نیست.",
+    parameters: { type: Type.OBJECT, properties: {} },
+  },
 ];
 
 export const METRIC_TOOL_NAMES = new Set(METRIC_TOOL_DECLARATIONS.map((d) => d.name!));
@@ -155,6 +160,11 @@ export async function runMetricTool(name: string, raw: Record<string, unknown>):
     case "get_alerts": {
       const fresh = d.alerts.filter((a) => a.status === "new").slice(0, 3);
       return { count: fresh.length, alerts: fresh.map((a) => ({ kind: a.kind, message: alertMessage(a, formatToman, toFa) })) };
+    }
+    case "get_assets_summary": {
+      const r = runMetrics({ mode: "assets_summary" }, d) as Record<string, unknown>;
+      const items = (r["items"] as Record<string, unknown>[]).map(({ id: _id, ...rest }) => rest);
+      return { ...r, items };
     }
   }
   return { error: "ابزار ناشناخته" };
