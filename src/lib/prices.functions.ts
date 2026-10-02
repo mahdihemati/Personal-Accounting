@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAuth } from "./auth-middleware";
-import { MIN_REFRESH_MS } from "./assets-catalog";
+import { DAILY_FETCH_CAP, MIN_REFRESH_MS } from "./assets-catalog";
 
 async function status(code: number) {
   const { setResponseStatus } = await import("@tanstack/react-start/server");
@@ -87,7 +87,7 @@ export const refreshPrices = createServerFn({ method: "POST" })
     const { data: today } = await admin.from("price_fetch_log").select("fetched_at").eq("user_id", uid).eq("ok", true)
       .in("trigger", ["auto", "manual"]).gte("fetched_at", dayAgo).order("fetched_at", { ascending: true });
     if (today && today.length >= DAILY_FETCH_CAP) {
-      const next = new Date(today[today.length - DAILY_FETCH_CAP].fetched_at).getTime() + 86_400_000;
+      const next = new Date(today[today.length - DAILY_FETCH_CAP]!.fetched_at).getTime() + 86_400_000;
       return { status: "skipped", skipped: "daily_cap", next_allowed_at: new Date(next).toISOString() };
     }
     // 3. monthly cap
