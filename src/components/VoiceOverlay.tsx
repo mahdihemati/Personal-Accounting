@@ -1,6 +1,7 @@
 import { afterTransactionsSaved } from "@/components/AlertToast";
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { useVoiceSession, type VoiceStatus } from "@/lib/voice/useVoiceSession";
@@ -45,7 +46,7 @@ export function VoiceOverlay({ onClose }: { onClose: () => void }) {
 
   async function decide(action: "confirm_all" | "cancel_all" | "remove_item", opts?: { index?: number; edited?: PendingBatch }) {
     const res = await v.decide(action, opts);
-    if (res.ok && action === "confirm_all") void qc.invalidateQueries({ queryKey: ["transactions"] });
+    if (res.ok && action === "confirm_all") { toast.success(res.message); void qc.invalidateQueries({ queryKey: ["transactions"] }); }
     return res;
   }
 
@@ -79,8 +80,11 @@ export function VoiceOverlay({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex w-full max-w-lg flex-col items-center gap-3">
         {v.pending && (
-          <VoiceConfirmCard batch={v.pending} categories={v.categories()} accounts={v.accounts()}
-            onDecide={decide} onChange={v.updatePending} />
+          <div role="dialog" aria-modal="true" aria-label="تأیید تراکنش‌ها"
+            className="fixed inset-0 z-[60] grid place-items-center bg-background/70 p-4 backdrop-blur-sm animate-in fade-in">
+            <VoiceConfirmCard batch={v.pending} categories={v.categories()} accounts={v.accounts()}
+              onDecide={decide} onChange={v.updatePending} />
+          </div>
         )}
         <Button variant="secondary" onClick={onClose} className="h-12 w-full max-w-xs rounded-full">پایان</Button>
       </div>
