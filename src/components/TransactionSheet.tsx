@@ -10,6 +10,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { budgetMonthKey, useAccounts, useCategories, useInvalidate, type Account, type Kind, type Necessity, type Transaction } from "@/lib/data";
 import { groupDigits, parseAmount, toFa } from "@/lib/format";
 import { endOfMonth, startOfMonth } from "date-fns-jalali";
+import { useQueryClient } from "@tanstack/react-query";
+import { afterTransactionsSaved } from "@/components/AlertToast";
+import { updateDecision } from "@/lib/metrics-data";
+import type { TxPrefill } from "@/lib/ui-events";
 
 /** Toast when this expense pushes its category past 80% / 100% of the month's budget. */
 async function warnBudget(categoryId: string, date: Date, amount: number, previousAmount: number) {
@@ -32,11 +36,14 @@ export function TransactionSheet({
   open,
   onOpenChange,
   editing,
+  prefill,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   editing?: Transaction | null;
+  prefill?: TxPrefill | null | undefined;
 }) {
+  const qc = useQueryClient();
   const { data: accounts = [] } = useAccounts();
   const { data: categories = [] } = useCategories();
   const invalidate = useInvalidate();
@@ -55,14 +62,14 @@ export function TransactionSheet({
     if (!open) return;
     setKind(editing?.kind ?? "expense");
     setToAccountId(editing?.to_account_id ?? "");
-    setAmount(editing?.amount ?? 0);
-    setCategoryId(editing?.category_id ?? "");
+    setAmount(editing?.amount ?? prefill?.amount ?? 0);
+    setCategoryId(editing?.category_id ?? prefill?.category_id ?? "");
     setAccountId(editing?.account_id ?? accounts[0]?.id ?? "");
     setDate(editing ? new Date(editing.occurred_at) : new Date());
-    setNote(editing?.note ?? "");
+    setNote(editing?.note ?? prefill?.note ?? "");
     setOverride(editing?.necessity_override ?? null);
     setShowOverride(!!editing?.necessity_override);
-  }, [open, editing, accounts]);
+  }, [open, editing, accounts, prefill]);
 
   const cats = categories.filter((c) => c.kind === kind);
 
@@ -83,14 +90,20 @@ export function TransactionSheet({
       note: note.trim() || null,
       necessity_override: kind === "expense" ? override : null,
     };
-    const { error } = editing
-      ? await supabase.from("transactions").update(row).eq("id", editing.id)
-      : await supabase.from("transactions").insert(row);
+    let newId: string | null = null;
+    let error: { message: string } | null = null;
+    if (editing) ({ error } = await supabase.from("transactions").update(row).eq("id", editing.id));
+    else {
+      const r = await supabase.from("transactions").insert(row).select("id").single();
+      error = r.error; newId = (r.data?.id as string | undefined) ?? null;
+    }
     setSaving(false);
     if (error) { toast.error("ذخیره نشد: " + error.message); return; }
     await invalidate("transactions");
     toast.success(editing ? "تراکنش ویرایش شد" : "تراکنش ثبت شد");
     onOpenChange(false);
+    if (newId && prefill?.decision_id) void updateDecision(prefill.decision_id, { transaction_id: newId }).then(() => invalidate("decisions"));
+    if (newId && kind === "expense") void afterTransactionsSaved([newId], qc);
     if (kind === "expense" && categoryId) void warnBudget(categoryId, date, amount, editing?.kind === "expense" && editing.category_id === categoryId ? editing.amount : 0);
   }
 
