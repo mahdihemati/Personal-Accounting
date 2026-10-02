@@ -123,13 +123,3 @@
 @utility shadow-fab {
   box-shadow: 0 10px 30px -8px color-mix(in oklch, var(--primary) 60%, transparent);
 }
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-@utility animate-float {
-  animation: float 4s ease-in-out infinite;
-}
-@utility drop-shadow-glow {
-  filter: drop-shadow(0 8px 18px color-mix(in oklch, var(--primary) 35%, transparent));
-}
