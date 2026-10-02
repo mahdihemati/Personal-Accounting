@@ -48,7 +48,7 @@ export function NavasanSettings() {
       <div>
         <p className="font-semibold">اتصال قیمت‌ها (نوسان)</p>
         <p className="mt-1 text-xs leading-6 text-muted-foreground">
-          کلید رایگان را از ربات تلگرام @navasan_contact_bot بگیر. پلن رایگان ۱۲۰ درخواست در ماه دارد، نرخ‌ها هر ۲ ساعت به‌روز می‌شوند و کلید ۳ ماه اعتبار دارد و تمدید نمی‌شود.
+          کلید رایگان را از ربات تلگرام @navasan_contact_bot بگیر. پلن رایگان ۱۲۰ درخواست در ماه دارد، اپ حداکثر روزی ۳ بار قیمت‌ها را به‌روز می‌کند و کلید ۳ ماه اعتبار دارد و تمدید نمی‌شود.
         </p>
       </div>
 
