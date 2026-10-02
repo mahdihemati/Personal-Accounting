@@ -27,7 +27,9 @@ export const analyzeFinance = createServerFn({ method: "POST" })
           .order("created_at", { ascending: false }).limit(1).maybeSingle(),
         db.from("finance_data_versions").select("changed_at").maybeSingle(),
       ]);
-      const fresh = cached && (!version || new Date(cached.created_at) > new Date(version.changed_at));
+      // A row from the last minute is reused even if data changed, so concurrent/duplicate requests don't call the AI twice.
+      const recent = cached && Date.now() - new Date(cached.created_at).getTime() < 60_000;
+      const fresh = cached && (recent || !version || new Date(cached.created_at) > new Date(version.changed_at));
       const insight = (cached?.payload as { insight?: Insight } | null)?.insight;
       if (fresh && insight) return { status: "ok", stats, insight, cached: true, createdAt: cached.created_at };
     }
