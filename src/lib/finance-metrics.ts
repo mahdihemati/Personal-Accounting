@@ -168,3 +168,71 @@ export function runwayBand(months: number): RunwayBand {
   if (months <= 6) return { key: "3to6", label: "۳ تا ۶ ماه" };
   return { key: "gt6", label: "بیش از ۶ ماه" };
 }
+
+// ---------- Single entry point: runMetrics({ mode, params }, data) ----------
+
+import { dailyBudget as _dailyBudget, monthForecast as _monthForecast } from "./budget-math";
+import type { MetricsData } from "./metrics/types";
+import type { PeriodKey } from "./metrics/periods";
+import { comparePeriods, explainChange, searchTransactions, topExpenses } from "./metrics/queries";
+import { findAnomalies } from "./metrics/anomalies";
+import { simulate, simulationBaseline, type SimParams } from "./metrics/simulate";
+import { checkPurchase } from "./metrics/purchase";
+import { withSpoken } from "./metrics/spoken-amount";
+
+export type MetricsRequest =
+  | { mode: "vitals"; params?: Record<string, never> }
+  | { mode: "daily_budget"; params?: Record<string, never> }
+  | { mode: "forecast"; params?: Record<string, never> }
+  | { mode: "top_expenses"; params: { period: PeriodKey; limit?: number; category_id?: string } }
+  | { mode: "compare_periods"; params: { period_a: PeriodKey; period_b: PeriodKey } }
+  | { mode: "explain_change"; params: { period: PeriodKey } }
+  | { mode: "search_transactions"; params: { period?: PeriodKey; category_id?: string; min_amount?: number; text?: string; limit?: number } }
+  | { mode: "anomalies"; params: { transaction_ids?: string[] } }
+  | { mode: "simulate"; params: SimParams }
+  | { mode: "check_purchase"; params: { amount: number; category_id?: string | null } };
+
+function planOf(d: MetricsData) {
+  const s = d.settings;
+  return s ? { monthly_income_expected: s.monthly_income_expected, savings_target: s.savings_target, monthly_essential_expected: s.monthly_essential_expected } : null;
+}
+
+function vitalsOf(d: MetricsData, now: Date) {
+  return computeFinanceMetrics({
+    accounts: d.accounts, txs: d.txs, categories: d.categories,
+    settings: d.settings ? {
+      monthly_income_expected: d.settings.monthly_income_expected,
+      monthly_essential_expected: d.settings.monthly_essential_expected,
+      emergency_fund_target_months: d.settings.emergency_fund_target_months,
+    } : null,
+    lessons: d.lessons ?? [], completedSlugs: d.completedSlugs ?? [],
+  }, now);
+}
+
+/** Every number in the app comes from here. Amount fields ending in `_toman` get a spoken `_text` twin. */
+export function runMetrics(req: MetricsRequest, d: MetricsData, now = new Date()) {
+  const cats = new Map<string, Necessity>(d.categories.map((c) => [c.id, c.necessity ?? "flexible"]));
+  switch (req.mode) {
+    case "vitals": return vitalsOf(d, now);
+    case "daily_budget": return _dailyBudget(now, d.txs, cats, planOf(d));
+    case "forecast": return _monthForecast(now, d.txs, cats, planOf(d));
+    case "top_expenses": return withSpoken(topExpenses(d.txs, d.categories, req.params, now));
+    case "compare_periods": return withSpoken(comparePeriods(d.txs, d.categories, req.params, now));
+    case "explain_change": return withSpoken(explainChange(d.txs, d.categories, req.params, now));
+    case "search_transactions": return withSpoken(searchTransactions(d.txs, d.categories, req.params, now));
+    case "anomalies": return findAnomalies(d, req.params, now);
+    case "simulate": {
+      const v = vitalsOf(d, now);
+      return withSpoken(simulate(simulationBaseline(d.txs, now), req.params, {
+        liquid_balance: v.liquid_balance, essential_monthly: v.essential_monthly, emergency_target_months: v.emergency_fund_target_months,
+      }));
+    }
+    case "check_purchase": {
+      const v = vitalsOf(d, now);
+      return withSpoken(checkPurchase(req.params, {
+        txs: d.txs, cats, plan: planOf(d), liquid_balance: v.liquid_balance, essential_monthly: v.essential_monthly,
+        emergency_target_months: v.emergency_fund_target_months, decisions: d.decisions,
+      }, now));
+    }
+  }
+}
