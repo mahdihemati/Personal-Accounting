@@ -6,7 +6,7 @@ import { GEMINI_LIVE_API_VERSION, GEMINI_LIVE_MODEL, VOICE_SYSTEM_INSTRUCTION } 
 import { getVoiceToken } from "@/lib/voice.functions";
 import { jDate } from "@/lib/format";
 import type { Account, Category } from "@/lib/data";
-import { TOOL_DECLARATIONS, buildPending, runReadTool, type PendingTx, type ToolArgs } from "./tools";
+import { TOOL_DECLARATIONS, VOICE_CONFIRM_MAX, buildBatch, runReadTool, soundsLikeConfirmation, type PendingBatch, type PendingTx, type ToolArgs } from "./tools";
 
 export type VoiceStatus = "connecting" | "listening" | "speaking" | "error";
 
@@ -52,7 +52,10 @@ function makeState() {
     categories: [] as Category[],
     accounts: [] as Account[],
     pendingCallId: null as string | null,
-    pending: null as PendingTx | null,
+    pending: null as PendingBatch | null,
+    heardSinceCard: "",
+    saving: false,
+    savedIdx: new Set<number>(),
   };
 }
 
@@ -61,8 +64,9 @@ export function useVoiceSession() {
   const [error, setError] = useState<string | null>(null);
   const [userText, setUserText] = useState("");
   const [assistantText, setAssistantText] = useState("");
-  const [pending, setPending] = useState<PendingTx | null>(null);
+  const [pending, setPending] = useState<PendingBatch | null>(null);
   const levelRef = useRef(0);
+  const onSaved = useRef<(() => void) | null>(null);
 
   const r = useRef(makeState());
 
@@ -116,30 +120,69 @@ export function useVoiceSession() {
     s.contextSent = true;
   }, [sendText]);
 
-  const finishPending = useCallback(async (decision: "confirm" | "cancel", edited?: PendingTx) => {
+  const setBatch = useCallback((b: PendingBatch | null) => {
     const s = r.current;
-    const p = edited ?? s.pending;
-    if (!p) return { ok: false, message: "تراکنشی در انتظار نیست" };
-    if (decision === "confirm") {
-      const { error: e } = await supabase.from("transactions").insert({
-        account_id: p.accountId, category_id: p.categoryId, amount: p.amount, kind: p.kind,
-        occurred_at: p.occurredAt.toISOString(), note: p.note || null, source: "voice", raw_transcript: p.rawTranscript || null,
-      });
-      if (e) return { ok: false, message: "ذخیره نشد: " + e.message };
-    }
-    s.pending = null;
-    setPending(null);
-    return { ok: true, message: decision === "confirm" ? "ثبت شد" : "لغو شد" };
+    s.pending = b && b.items.length ? b : null;
+    setPending(s.pending);
   }, []);
 
-  /** Touch decision from the confirmation card. */
-  const decide = useCallback(async (decision: "confirm" | "cancel", edited?: PendingTx) => {
-    const res = await finishPending(decision, edited);
-    if (res.ok) sendText(`[سیستم] کاربر تراکنش را با لمس ${decision === "confirm" ? "تأیید کرد و ثبت شد" : "لغو کرد"}.`, true);
-    return res;
-  }, [finishPending, sendText]);
+  /** Idempotent save: (batch_id, batch_index) is unique, duplicates are ignored. */
+  const saveItems = useCallback(async (b: PendingBatch, items: PendingTx[]) => {
+    const s = r.current;
+    const rows = items.filter((p) => !s.savedIdx.has(p.idx)).map((p) => ({
+      account_id: p.accountId, category_id: p.categoryId || null, amount: p.amount, kind: p.kind,
+      occurred_at: p.occurredAt.toISOString(), note: p.note || null, source: "voice", raw_transcript: p.rawTranscript || null,
+      batch_id: b.batchId, batch_index: p.idx,
+    }));
+    if (!rows.length) return { ok: true as const };
+    const { error: e } = await supabase.from("transactions")
+      .upsert(rows, { onConflict: "batch_id,batch_index", ignoreDuplicates: true });
+    if (e) return { ok: false as const, message: "ذخیره نشد: " + e.message };
+    rows.forEach((row) => s.savedIdx.add(row.batch_index));
+    return { ok: true as const };
+  }, []);
 
-  const updatePending = useCallback((p: PendingTx) => { r.current.pending = p; setPending(p); }, []);
+  type Action = "confirm_all" | "cancel_all" | "remove_item";
+  const resolve = useCallback(async (action: Action, opts: { index?: number | undefined; byVoice: boolean; edited?: PendingBatch }) => {
+    const s = r.current;
+    const b = opts.edited ?? s.pending;
+    if (!b) return { ok: false, message: "تراکنشی در انتظار نیست" };
+    if (action === "cancel_all") { setBatch(null); return { ok: true, message: "همه لغو شد" }; }
+    if (action === "remove_item") {
+      const pos = opts.index ?? -1;
+      if (pos < 0 || pos >= b.items.length) return { ok: false, message: "ردیف پیدا نشد" };
+      setBatch({ ...b, items: b.items.filter((_, i) => i !== pos) });
+      return { ok: true, message: "ردیف حذف شد" };
+    }
+    // confirm_all
+    if (opts.byVoice && !soundsLikeConfirmation(s.heardSinceCard)) {
+      return { ok: false, message: "کاربر هنوز با صدای خودش تأیید نکرده؛ از او بخواه تأیید کند یا روی «ثبت همه» بزند." };
+    }
+    if (b.items.some((p) => !p.amount || !p.accountId)) return { ok: false, message: "مبلغ یا حساب یکی از ردیف‌ها خالی است" };
+    if (s.saving) return { ok: false, message: "در حال ثبت…" };
+    const allowed = opts.byVoice ? b.items.filter((p) => p.amount <= VOICE_CONFIRM_MAX) : b.items;
+    const held = b.items.filter((p) => !allowed.includes(p));
+    s.saving = true;
+    const res = await saveItems(b, allowed);
+    s.saving = false;
+    if (!res.ok) return res;
+    setBatch(held.length ? { ...b, items: held } : null);
+    return {
+      ok: true,
+      message: held.length
+        ? `${allowed.length} مورد ثبت شد؛ ${held.length} مورد بالای ۵ میلیون تومان فقط با لمس ثبت می‌شود.`
+        : `${allowed.length} مورد ثبت شد`,
+    };
+  }, [saveItems, setBatch]);
+
+  /** Touch decisions from the confirmation card. */
+  const decide = useCallback(async (action: Action, opts: { index?: number | undefined; edited?: PendingBatch } = {}) => {
+    const res = await resolve(action, { ...opts, byVoice: false });
+    if (res.ok && action !== "remove_item") sendText(`[سیستم] کاربر با لمس: ${res.message}.`, true);
+    return res;
+  }, [resolve, sendText]);
+
+  const updatePending = useCallback((b: PendingBatch) => { r.current.pending = b; setPending(b); }, []);
 
   const handleMessage = useCallback(async (msg: LiveServerMessage) => {
     const s = r.current;
@@ -157,6 +200,7 @@ export function useVoiceSession() {
       if (sc.inputTranscription?.text) {
         if (s.turnAssistant) { s.turnAssistant = ""; }
         s.turnUser += sc.inputTranscription.text;
+        if (s.pending) s.heardSinceCard += " " + sc.inputTranscription.text;
         setUserText(s.turnUser);
       }
       if (sc.outputTranscription?.text) {
@@ -179,14 +223,19 @@ export function useVoiceSession() {
         const args = (c.args ?? {}) as ToolArgs;
         let response: Record<string, unknown>;
         try {
-          if (c.name === "propose_transaction") {
-            const p = buildPending(args, s.categories, s.accounts, s.turnUser || s.lastTurnUser);
-            s.pending = p;
-            setPending(p);
-            response = { status: "pending_confirmation" };
+          if (c.name === "propose_transactions") {
+            const b = buildBatch(args, s.categories, s.accounts, s.turnUser || s.lastTurnUser);
+            s.savedIdx = new Set();
+            s.heardSinceCard = "";
+            setBatch(b);
+            response = b.items.length
+              ? { status: "pending_confirmation", count: b.items.length, voice_confirm_limit_toman: VOICE_CONFIRM_MAX }
+              : { status: "failed", message: "هیچ تراکنشی دریافت نشد" };
           } else if (c.name === "resolve_pending_transaction") {
-            const res = await finishPending(args.decision === "confirm" ? "confirm" : "cancel");
-            response = { status: res.ok ? (args.decision === "confirm" ? "saved" : "cancelled") : "failed", message: res.message };
+            const action = (["confirm_all", "cancel_all", "remove_item"].includes(String(args.action)) ? args.action : "cancel_all") as Action;
+            const res = await resolve(action, { index: typeof args.index === "number" ? args.index : undefined, byVoice: true });
+            if (res.ok && action === "confirm_all") onSaved.current?.();
+            response = { status: res.ok ? "ok" : "failed", message: res.message };
           } else {
             response = await runReadTool(c.name ?? "", args, s.categories);
           }
@@ -198,7 +247,7 @@ export function useVoiceSession() {
       s.session?.sendToolResponse({ functionResponses });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finishPending, playChunk, sendContext, stopPlayback]);
+  }, [resolve, setBatch, playChunk, sendContext, stopPlayback]);
 
   const connect = useCallback(async (token: string) => {
     const s = r.current;
@@ -360,7 +409,7 @@ export function useVoiceSession() {
   }, []);
 
   return {
-    status, error, userText, assistantText, pending, getLevel, decide, updatePending,
+    status, error, userText, assistantText, pending, getLevel, decide, updatePending, onSaved,
     categories: () => r.current.categories, accounts: () => r.current.accounts,
   };
 }
