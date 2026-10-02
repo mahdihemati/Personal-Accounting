@@ -1,3 +1,4 @@
+import { Illustration } from "@/components/Illustration";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -68,7 +69,7 @@ function SettingsPage() {
 
   return (
     <main className="space-y-6 px-5 pt-8">
-      <h1 className="text-2xl font-bold">تنظیمات</h1>
+      <h1 className="text-2xl font-bold flex items-center gap-2"><Illustration name="cards" size={48} />تنظیمات</h1>
 
       <div className="grid grid-cols-2 gap-3">
         <Link to="/learn" className="flex min-h-28 flex-col justify-between rounded-3xl bg-card p-4 hover:bg-muted/60">
