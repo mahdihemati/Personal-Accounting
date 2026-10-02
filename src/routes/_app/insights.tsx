@@ -1,3 +1,4 @@
+import { Illustration } from "@/components/Illustration";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { FlaskConical, NotebookPen } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
@@ -55,7 +56,7 @@ function InsightsPage() {
   return (
     <main className="space-y-5 px-5 pt-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">تحلیل هوشمند</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2"><Illustration name="charts" size={48} />تحلیل هوشمند</h1>
         {result?.status === "ok" && (
           <Button size="sm" variant="ghost" disabled={loading} onClick={() => refresh.mutate()}>
             <RefreshCw className={loading ? "animate-spin" : ""} /> تحلیل دوباره
