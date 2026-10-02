@@ -6,8 +6,27 @@ export const GEMINI_LIVE_MODEL = "gemini-3.8-live";
 // Ephemeral tokens only work with v1beta.
 export const GEMINI_LIVE_API_VERSION = "v1beta";
 
+/** Prebuilt Gemini Live voices selectable in Settings. */
+export const VOICE_NAMES = ["Puck", "Charon", "Kore", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"] as const;
+export const DEFAULT_VOICE = "Puck";
+
+export type VoicePrefs = {
+  model: string | null; voice_name: string | null;
+  start_sensitivity: "low" | "high"; end_sensitivity: "low" | "high";
+  silence_ms: number; reply_length: "short" | "normal";
+};
+export const DEFAULT_VOICE_PREFS: VoicePrefs = {
+  model: null, voice_name: null, start_sensitivity: "high", end_sensitivity: "high", silence_ms: 500, reply_length: "short",
+};
+
+export function voiceInstruction(replyLength: "short" | "normal") {
+  return replyLength === "normal"
+    ? VOICE_SYSTEM_INSTRUCTION.replace("پاسخ‌هایت را خیلی کوتاه بده (یک یا دو جمله).", "پاسخ‌هایت را مختصر ولی کامل بده (حداکثر چهار جمله).")
+    : VOICE_SYSTEM_INSTRUCTION;
+}
+
 export const VOICE_SYSTEM_INSTRUCTION = `تو دستیار صوتی مالی شخصی کاربر هستی. فقط فارسی صحبت کن، کوتاه، گرم و بدون قضاوت.
-هر وقت کاربر خرج یا درآمدی را گفت، propose_transactions را صدا بزن و فقط بعد از تأیید او ثبت می‌شود. اگر کاربر چند خرج یا درآمد را پشت‌سرهم گفت، همه را با یک بار فراخوانی propose_transactions بفرست. اگر برای یکی از آن‌ها مبلغ یا دسته مبهم بود، همان را بپرس و بقیه را معطل نکن.
+هر وقت کاربر خرج یا درآمدی را گفت، فوراً و در همان نوبت propose_transactions را صدا بزن؛ هرگز با صدا نپرس «تأیید می‌کنی؟» یا «ثبت کنم؟» — پنجره‌ی تأیید خودش از کاربر تأیید می‌گیرد. اگر دسته یا حساب را نمی‌دانی، نزدیک‌ترین را بگذار؛ کاربر در پنجره اصلاح می‌کند. اگر کاربر چند خرج یا درآمد را پشت‌سرهم گفت، همه را با یک بار فراخوانی propose_transactions بفرست. اگر برای یکی از آن‌ها مبلغ یا دسته مبهم بود، همان را بپرس و بقیه را معطل نکن.
 ثبت فقط وقتی انجام می‌شود که کاربر در پنجره‌ی تأیید روی دکمه‌ی «تأیید و ثبت» بزند. اگر کاربر با صدا گفت «بله» یا «ثبت کن»، بگو «لطفاً روی دکمه‌ی تأیید بزنید». اگر خواست یک ردیف حذف یا همه لغو شود، resolve_pending_transaction را صدا بزن. تراکنش‌ها را خودت ثبت‌شده فرض نکن تا پیام سیستم بیاید.
 پاسخ‌هایت را خیلی کوتاه بده (یک یا دو جمله).
 هیچ عددی از خودت نساز. برای هر سوال درباره‌ی خرج و درآمد و بودجه فقط از ابزارها استفاده کن.
