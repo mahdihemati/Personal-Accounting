@@ -82,6 +82,14 @@ export const refreshPrices = createServerFn({ method: "POST" })
       const next = new Date(last.fetched_at).getTime() + MIN_REFRESH_MS;
       if (Date.now() < next) return { status: "skipped", skipped: "too_soon", next_allowed_at: new Date(next).toISOString() };
     }
+    // 2b. daily cap (rolling 24h, successful auto+manual fetches)
+    const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
+    const { data: today } = await admin.from("price_fetch_log").select("fetched_at").eq("user_id", uid).eq("ok", true)
+      .in("trigger", ["auto", "manual"]).gte("fetched_at", dayAgo).order("fetched_at", { ascending: true });
+    if (today && today.length >= DAILY_FETCH_CAP) {
+      const next = new Date(today[today.length - DAILY_FETCH_CAP].fetched_at).getTime() + 86_400_000;
+      return { status: "skipped", skipped: "daily_cap", next_allowed_at: new Date(next).toISOString() };
+    }
     // 3. monthly cap
     const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
     const { count } = await admin.from("price_fetch_log").select("id", { count: "exact", head: true })
