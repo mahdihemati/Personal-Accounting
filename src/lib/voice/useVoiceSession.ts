@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { EndSensitivity, GoogleGenAI, Modality, StartSensitivity, type LiveServerMessage, type FunctionResponse, type Session } from "@google/genai";
 import { format as gFormat } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { GEMINI_LIVE_API_VERSION, GEMINI_LIVE_MODEL, VOICE_SYSTEM_INSTRUCTION } from "@/lib/ai-config";
+import { DEFAULT_VOICE, DEFAULT_VOICE_PREFS, GEMINI_LIVE_API_VERSION, GEMINI_LIVE_MODEL, voiceInstruction, type VoicePrefs } from "@/lib/ai-config";
 import { getVoiceToken } from "@/lib/voice.functions";
 import { jDate } from "@/lib/format";
 import type { Account, Category } from "@/lib/data";
@@ -55,6 +55,10 @@ function makeState() {
     heardSinceCard: "",
     saving: false,
     savedIdx: new Set<number>(),
+    model: GEMINI_LIVE_MODEL,
+    prefs: DEFAULT_VOICE_PREFS as VoicePrefs,
+    toolThisTurn: false,
+    nudged: false,
   };
 }
 
@@ -217,6 +221,13 @@ export function useVoiceSession() {
         if (part.inlineData?.data && part.inlineData.mimeType?.startsWith("audio/")) playChunk(part.inlineData.data);
       }
       if (sc.turnComplete) {
+        // Model asked for confirmation by voice without calling the tool: nudge it once per turn.
+        if (!s.toolThisTurn && !s.pending && !s.nudged && /(تأیید|تایید|ثبت\s*(ش\s*)?کنم|ثبت\s*بشه|ثبت\s*شود)/.test(s.turnAssistant)) {
+          s.nudged = true;
+          console.info("[voice] asked to confirm without propose_transactions; nudging");
+          sendText("[سیستم] با صدا تأیید نگیر. همین حالا propose_transactions را با تراکنش‌هایی که کاربر گفت صدا بزن تا پنجره‌ی تأیید باز شود.", true);
+        } else if (s.turnUser) s.nudged = false;
+        s.toolThisTurn = false;
         if (s.turnUser) s.lastTurnUser = s.turnUser;
         s.turnUser = "";
         s.turnAssistant = "";
@@ -228,6 +239,8 @@ export function useVoiceSession() {
       for (const c of calls) {
         const args = (c.args ?? {}) as ToolArgs;
         let response: Record<string, unknown>;
+        s.toolThisTurn = true;
+        console.info("[voice] tool call", c.name, Array.isArray((args as { items?: unknown[] }).items) ? (args as { items: unknown[] }).items.length : "");
         try {
           if (c.name === "propose_transactions") {
             const b = buildBatch(args, s.categories, s.accounts, s.turnUser || s.lastTurnUser);
@@ -247,6 +260,7 @@ export function useVoiceSession() {
             response = await runReadTool(c.name ?? "", args, s.categories);
           }
         } catch (e) {
+          console.error("[voice] tool failed", c.name, e);
           response = { error: e instanceof Error ? e.message : "خطا" };
         }
         functionResponses.push({ id: c.id, name: c.name, response } as FunctionResponse);
@@ -262,19 +276,19 @@ export function useVoiceSession() {
     return new Promise<Session>((resolve, reject) => {
       let opened = false;
       ai.live.connect({
-        model: GEMINI_LIVE_MODEL,
+        model: s.model,
         config: {
           responseModalities: [Modality.AUDIO],
-          systemInstruction: VOICE_SYSTEM_INSTRUCTION,
+          systemInstruction: voiceInstruction(s.prefs.reply_length),
           sessionResumption: s.handle ? { handle: s.handle } : {},
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          speechConfig: { languageCode: "fa-IR" },
+          speechConfig: { languageCode: "fa-IR", voiceConfig: { prebuiltVoiceConfig: { voiceName: s.prefs.voice_name ?? DEFAULT_VOICE } } },
           realtimeInputConfig: {
             automaticActivityDetection: {
-              startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_HIGH,
-              endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH,
-              silenceDurationMs: 500,
+              startOfSpeechSensitivity: s.prefs.start_sensitivity === "low" ? StartSensitivity.START_SENSITIVITY_LOW : StartSensitivity.START_SENSITIVITY_HIGH,
+              endOfSpeechSensitivity: s.prefs.end_sensitivity === "low" ? EndSensitivity.END_SENSITIVITY_LOW : EndSensitivity.END_SENSITIVITY_HIGH,
+              silenceDurationMs: s.prefs.silence_ms,
               prefixPaddingMs: 200,
             },
           },
@@ -299,6 +313,8 @@ export function useVoiceSession() {
   const fetchToken = useCallback(async () => {
     const res = await getVoiceToken();
     if (res.status !== "ok") throw new Error(res.message);
+    r.current.model = res.model;
+    r.current.prefs = res.prefs;
     return res.token;
   }, []);
 
