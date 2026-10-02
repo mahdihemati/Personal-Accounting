@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionSheet } from "@/components/TransactionSheet";
+import { VitalsCards, WeeklyReportCard } from "@/components/VitalsCards";
 import { DailyBudgetCard, ForecastCard, ReviewCategoriesCard } from "@/components/PlanCards";
 import { budgetTone, useAccounts, useBudgetProgress, useCategories, useTotals, useTransactions, type Transaction } from "@/lib/data";
 import { formatToman, formatTomanShort, toFa } from "@/lib/format";
@@ -72,6 +73,8 @@ function HomePage() {
 
       <ReviewCategoriesCard />
       <DailyBudgetCard />
+      <WeeklyReportCard />
+      <VitalsCards />
 
       <section className="grid grid-cols-2 gap-3">
         <div className="rounded-3xl bg-card p-5">
