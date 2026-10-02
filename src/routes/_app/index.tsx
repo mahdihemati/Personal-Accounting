@@ -1,4 +1,3 @@
-import { Illustration } from "@/components/Illustration";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { endOfMonth, format, getDate, getDaysInMonth, startOfMonth } from "date-fns-jalali";
@@ -67,12 +66,9 @@ function HomePage() {
   return (
     <main className="space-y-6 px-5 pt-8">
       <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Illustration name="wallet" size={64} />
-          <div>
+        <div>
           <p className="text-sm text-muted-foreground">موجودی کل</p>
           <p className="mt-1 text-4xl font-extrabold tracking-tight">{formatTomanShort(balance)}</p>
-          </div>
         </div>
         <Button size="icon" className="size-12 rounded-2xl" onClick={() => { setEditing(null); setSheet(true); }} aria-label="تراکنش جدید">
           <Plus />
