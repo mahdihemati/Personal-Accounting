@@ -17,12 +17,12 @@ export const TOOL_DECLARATIONS: FunctionDeclaration[] = [
           items: {
             type: Type.OBJECT,
             properties: {
-              amount_toman: { type: Type.INTEGER, description: "مبلغ به تومان" },
+              amount_toman: { type: Type.INTEGER, description: "مبلغ به تومان، عدد صحیح کامل (۲۰۰ هزار = 200000؛ ریال ÷ ۱۰)" },
               kind: { type: Type.STRING, enum: ["income", "expense"] },
-              category_name: { type: Type.STRING },
-              account_name: { type: Type.STRING },
-              occurred_at: { type: Type.STRING, description: "ISO 8601" },
-              note: { type: Type.STRING },
+              category_name: { type: Type.STRING, description: "دقیقاً یکی از نام‌های دسته در بافت (نزدیک‌ترین معنی)" },
+              account_name: { type: Type.STRING, description: "دقیقاً یکی از نام‌های حساب در بافت؛ اگر نگفت، حساب پیش‌فرض" },
+              occurred_at: { type: Type.STRING, description: "ISO 8601؛ تاریخ نسبی بر اساس امروزِ بافت" },
+              note: { type: Type.STRING, description: "چند کلمه از حرف خود کاربر، بدون مبلغ" },
               decision_id: { type: Type.STRING, description: "شناسه‌ی تصمیمی که record_decision برگرداند (اختیاری)" },
             },
             required: ["amount_toman", "kind", "category_name"],
