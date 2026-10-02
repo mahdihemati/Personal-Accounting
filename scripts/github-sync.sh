@@ -63,6 +63,13 @@ for f in "${FILES[@]}"; do
     continue
   fi
 
+  # Skip files whose local content already matches GitHub (no redundant commits).
+  localsha=$(python3 -c "import hashlib,sys;d=open(sys.argv[1],'rb').read();print(hashlib.sha1(b'blob %d\x00'%len(d)+d).hexdigest())" "$f")
+  if [ -n "$sha" ] && [ "$sha" = "$localsha" ]; then
+    echo "SKIP unchanged $f"
+    continue
+  fi
+
   python3 - "$f" "$MSG" "$sha" > /tmp/gh_body.json <<'PY'
 import base64,json,sys
 f,msg,sha=sys.argv[1:4]
