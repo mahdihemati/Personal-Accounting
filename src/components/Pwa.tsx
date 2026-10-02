@@ -17,7 +17,7 @@ export function PwaBoot() {
   const [iosHint, setIosHint] = useState(false);
   useEffect(() => {
     void initPwa((update) => {
-      toast("نسخه‌ی جدید آماده است", { duration: Infinity, action: { label: "به‌روزرسانی", onClick: update } });
+      toast.info("نسخه‌ی جدید آماده است", { description: "برای دریافت تغییرات تازه به‌روزرسانی کنید.", duration: Infinity, action: { label: "به‌روزرسانی", onClick: update } });
     });
     const onBip = (e: Event) => { e.preventDefault(); deferred = e as BIPEvent; listeners.forEach((l) => l()); };
     window.addEventListener("beforeinstallprompt", onBip);
