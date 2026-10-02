@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 export type AccountType = "cash" | "card" | "wallet";
 export type Kind = "income" | "expense";
 export type Account = { id: string; name: string; type: AccountType; initial_balance: number; created_at: string };
-export type Category = { id: string; name: string; kind: Kind; icon: string | null; color: string | null };
+export type Necessity = "essential" | "flexible";
+export type Category = { id: string; name: string; kind: Kind; icon: string | null; color: string | null; necessity: Necessity };
 export type Transaction = {
   id: string;
   account_id: string;
@@ -14,6 +15,7 @@ export type Transaction = {
   kind: Kind | "transfer";
   occurred_at: string;
   note: string | null;
+  necessity_override: Necessity | null;
 };
 
 /** Live balance per account: initial + income − expense ± transfers. */
@@ -120,4 +122,42 @@ export function useBudgetProgress(range: { from: Date; to: Date }) {
 
 export function budgetTone(ratio: number): "ok" | "warn" | "over" {
   return ratio > 1 ? "over" : ratio >= 0.8 ? "warn" : "ok";
+}
+
+export type UserSettings = {
+  user_id: string;
+  monthly_income_expected: number | null;
+  savings_target: number | null;
+  monthly_essential_expected: number | null;
+  review_categories_seen: boolean;
+};
+
+export function useUserSettings() {
+  return useQuery({
+    queryKey: ["user_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_settings").select("*").maybeSingle();
+      if (error) throw new Error(error.message);
+      return (data ?? null) as UserSettings | null;
+    },
+  });
+}
+
+export async function saveUserSettings(patch: Partial<Omit<UserSettings, "user_id">>) {
+  const { data: u } = await supabase.auth.getUser();
+  if (!u.user) throw new Error("not signed in");
+  const { error } = await supabase.from("user_settings")
+    .upsert({ user_id: u.user.id, ...patch, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
+}
+
+/** Lightweight columns of all transactions for code-side money math. */
+export function useMathTransactions() {
+  return useQuery({
+    queryKey: ["transactions", "math"],
+    queryFn: async () =>
+      unwrap<Pick<Transaction, "amount" | "kind" | "occurred_at" | "category_id" | "necessity_override">[]>(
+        await supabase.from("transactions").select("amount,kind,occurred_at,category_id,necessity_override"),
+      ),
+  });
 }
