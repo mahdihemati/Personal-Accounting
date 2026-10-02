@@ -1,3 +1,4 @@
+import { afterTransactionsSaved } from "@/components/AlertToast";
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -39,7 +40,8 @@ export function VoiceOverlay({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     v.onSaved.current = () => void qc.invalidateQueries({ queryKey: ["transactions"] });
-  }, [v.onSaved, qc]);
+    v.onInserted.current = (ids) => { if (ids.length) void afterTransactionsSaved(ids, qc); };
+  }, [v.onSaved, v.onInserted, qc]);
 
   async function decide(action: "confirm_all" | "cancel_all" | "remove_item", opts?: { index?: number; edited?: PendingBatch }) {
     const res = await v.decide(action, opts);
