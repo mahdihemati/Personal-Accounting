@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
-import { dailyBudget, monthForecast, type MathTx, type Necessity } from "@/lib/budget-math";
+import { type DailyBudget, type Forecast, type MathTx, type Necessity } from "@/lib/budget-math";
+import { runMetrics } from "@/lib/finance-metrics";
+import type { MetricsData } from "@/lib/metrics/types";
 import { saveUserSettings, useCategories, useInvalidate, useMathTransactions, useUserSettings } from "@/lib/data";
 import { formatToman, formatTomanShort } from "@/lib/format";
 
@@ -13,13 +15,14 @@ function useMathInputs() {
   const { data: categories = [] } = useCategories();
   const { data: settings, isLoading } = useUserSettings();
   const cats = useMemo(() => new Map<string, Necessity>(categories.map((c) => [c.id, c.necessity ?? "flexible"])), [categories]);
-  return { txs: txs as MathTx[], cats, settings, isLoading };
+  const data = { accounts: [], txs: txs as MetricsData["txs"], categories, settings: (settings ?? null) as MetricsData["settings"], decisions: [], alerts: [] } as MetricsData;
+  return { txs: txs as MathTx[], cats, settings, isLoading, data };
 }
 
 export function DailyBudgetCard() {
-  const { txs, cats, settings, isLoading } = useMathInputs();
+  const { data, isLoading } = useMathInputs();
   if (isLoading) return null;
-  const r = dailyBudget(new Date(), txs, cats, settings);
+  const r = runMetrics({ mode: "daily_budget" }, data) as DailyBudget;
   return (
     <section className="rounded-3xl bg-card p-5">
       <p className="text-xs text-muted-foreground">بودجه‌ی امروز</p>
@@ -44,9 +47,9 @@ export function DailyBudgetCard() {
 }
 
 export function ForecastCard() {
-  const { txs, cats, settings, isLoading } = useMathInputs();
+  const { data, isLoading } = useMathInputs();
   if (isLoading) return null;
-  const f = monthForecast(new Date(), txs, cats, settings);
+  const f = runMetrics({ mode: "forecast" }, data) as Forecast;
   return (
     <section className="rounded-3xl bg-card p-5">
       <div className="flex items-center justify-between">
