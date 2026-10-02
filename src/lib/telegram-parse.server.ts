@@ -1,6 +1,6 @@
 /** Server-only: turn a Telegram text/voice message into transaction drafts with Gemini. Code validates everything. */
 import { format as gFormat } from "date-fns";
-import { GEMINI_MODEL } from "./ai-config";
+import { FA_SPEECH_RULES, GEMINI_MODEL } from "./ai-config";
 import { jDate } from "./format";
 
 export type ParsedItem = { amount: number; kind: "income" | "expense"; category_id: string; account_id: string; date: string; note: string; raw: string };
@@ -31,10 +31,9 @@ const schema = {
 };
 
 const SYSTEM = `تو دستیار ثبت تراکنش مالی در تلگرام هستی. پیام کاربر (متن یا صوت فارسی) را به تراکنش تبدیل کن.
-- مبلغ به تومان: «صد تومن» بدون واحد بزرگ مبهم است و باید بپرسی «منظورت صد هزار تومان است؟». «دویست هزار»=200000، «دو میلیون و پانصد»=2500000، «۲ تومن» در محاوره معمولاً یعنی ۲ میلیون؛ اگر شک داری بپرس.
-- category_name را فقط از فهرست دسته‌ها انتخاب کن (نزدیک‌ترین معنی). اگر هیچ‌کدام نزدیک نبود، بپرس.
-- account_name را فقط از فهرست حساب‌ها انتخاب کن؛ اگر کاربر نگفت، خالی بگذار.
-- تاریخ‌های نسبی را بر اساس امروز حساب کن؛ پیش‌فرض امروز.
+${FA_SPEECH_RULES}
+- account_name: اگر کاربر حساب را نگفت، خالی بگذار.
+- اگر هیچ دسته‌ای نزدیک نبود، بپرس.
 - اگر پیش‌نویس قبلی و سؤال باز داده شده، پیام جدید جواب آن سؤال است: پیش‌نویس را با آن کامل کن و همه‌ی آیتم‌ها را برگردان.
 - فقط وقتی مبلغ یا نوع یا دسته‌ی یک آیتم مشخص نیست question بنویس؛ یک سؤال کوتاه. وگرنه question خالی.
 - اگر پیام تراکنش نبود، items خالی و در reply کوتاه توضیح بده که چه کار می‌کنی.
