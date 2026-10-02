@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,14 @@ function AuthPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [remember, setRemember] = useState(true);
+
+  // Already signed in (remembered session) → go straight in.
+  useEffect(() => {
+    void supabase.auth.getSession().then(({ data }) => {
+      if (data.session) navigate({ to: "/", replace: true });
+    });
+  }, [navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,6 +59,8 @@ function AuthPage() {
       toast.error(mode === "login" ? "نام کاربری یا رمز عبور اشتباه است" : "ورود خودکار ناموفق بود؛ دوباره وارد شوید");
       return;
     }
+    localStorage.setItem("remember-me", remember ? "1" : "0");
+    sessionStorage.setItem("session-alive", "1");
     navigate({ to: "/", replace: true });
   }
 
@@ -71,6 +82,10 @@ function AuthPage() {
           <Label htmlFor="password">رمز عبور</Label>
           <Input id="password" type="password" dir="ltr" required minLength={6} autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 rounded-xl" />
         </div>
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <Checkbox checked={remember} onCheckedChange={(v) => setRemember(v === true)} />
+          مرا به خاطر بسپار
+        </label>
         <Button type="submit" disabled={busy} className="h-12 w-full rounded-xl text-base">
           {busy ? "لطفاً صبر کنید…" : mode === "login" ? "ورود" : "ثبت‌نام"}
         </Button>
