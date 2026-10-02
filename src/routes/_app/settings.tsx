@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { supabase } from "@/integrations/supabase/client";
 import {
   ACCOUNT_TYPE_LABEL,
+  useAccountBalances,
   useAccounts,
   useCategories,
   useInvalidate,
@@ -37,6 +38,7 @@ const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 
 function SettingsPage() {
   const { data: accounts = [] } = useAccounts();
+  const balances = useAccountBalances();
   const { data: categories = [] } = useCategories();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -67,7 +69,10 @@ function SettingsPage() {
               <span className="block font-medium">{a.name}</span>
               <span className="text-xs text-muted-foreground">{ACCOUNT_TYPE_LABEL[a.type]}</span>
             </span>
-            <span className="text-sm text-muted-foreground">{formatToman(Number(a.initial_balance))}</span>
+            <span className="text-left">
+              <span className="block text-sm font-semibold tabular-nums">{formatToman(balances.get(a.id) ?? Number(a.initial_balance))}</span>
+              <span className="text-[11px] text-muted-foreground">موجودی فعلی</span>
+            </span>
           </button>
         ))}
       </section>
