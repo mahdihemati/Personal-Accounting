@@ -4,10 +4,8 @@ import { z } from "zod";
 import { requireAuth } from "./auth-middleware";
 import { DAILY_FETCH_CAP, MIN_REFRESH_MS } from "./assets-catalog";
 
-async function status(code: number) {
-  const { setResponseStatus } = await import("@tanstack/react-start/server");
-  setResponseStatus(code);
-}
+/** Failures are returned as typed results with HTTP 200; a non-2xx status makes the client RPC throw and blanks the page. */
+async function status(_code: number) {}
 
 export type SaveKeyResult = { ok: true; last4: string } | { ok: false; message: string; need_secret?: boolean };
 
