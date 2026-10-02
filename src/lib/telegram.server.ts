@@ -3,6 +3,7 @@ import { getSupabaseAdmin } from "@/integrations/supabase/client.server";
 import { decryptKey } from "./prices.server";
 import { formatToman, jDate } from "./format";
 import { parseTelegramMessage, type ParsedItem } from "./telegram-parse.server";
+import { answerTelegramQuestion } from "./telegram-answer.server";
 
 const API = "https://api.telegram.org";
 
@@ -125,9 +126,17 @@ export async function handleUpdate(webhookId: string, secretHeader: string, upda
     return 200;
   }
 
+  const answer = async () => {
+    if (!parsed.userQuestion) return;
+    await tg(token, "sendChatAction", { chat_id: chatId, action: "typing" });
+    try { await say(await answerTelegramQuestion(admin, link.user_id, parsed.userQuestion)); }
+    catch (e) { await say(e instanceof Error && /[\u0600-\u06FF]/.test(e.message) ? e.message : "پاسخ به سؤال ممکن نشد."); }
+  };
+
   if (!parsed.items.length && !parsed.question) {
+    if (parsed.intent === "question" && parsed.userQuestion) { await answer(); return 200; }
     if (open) await admin.from("telegram_drafts").update({ status: "cancelled" }).eq("id", open.id);
-    await say(parsed.reply || "تراکنشی پیدا نکردم. مثلاً بنویس «۲۰۰ هزار تومن خرید نان».");
+    await say(parsed.reply || "می‌توانم هزینه، درآمد و انتقال بین حساب‌ها را ثبت کنم و به سؤال‌های مالی‌ات جواب بدهم. مثلاً «۲۰۰ هزار تومن خرید نان» یا «این ماه چقدر خرج کردم؟».");
     return 200;
   }
 
@@ -135,6 +144,7 @@ export async function handleUpdate(webhookId: string, secretHeader: string, upda
     if (open) await admin.from("telegram_drafts").update({ items: parsed.items, question: parsed.question }).eq("id", open.id);
     else await admin.from("telegram_drafts").insert({ user_id: link.user_id, chat_id: chatId, items: parsed.items, question: parsed.question, status: "collecting" });
     await say(parsed.question);
+    await answer();
     return 200;
   }
 
@@ -150,13 +160,20 @@ export async function handleUpdate(webhookId: string, secretHeader: string, upda
     reply_markup: { inline_keyboard: [[{ text: "✅ تأیید و ثبت", callback_data: `c:${draftId}` }, { text: "❌ لغو", callback_data: `x:${draftId}` }]] },
   }) as TgResult<{ message_id: number }>;
   if (sent.ok && sent.result) await admin.from("telegram_drafts").update({ message_id: sent.result.message_id }).eq("id", draftId);
+  await answer();
   return 200;
 }
 
 function summary(items: ParsedItem[], cats: { id: string; name: string }[], accs: { id: string; name: string }[], title: string) {
   const lines = items.map((it, i) => {
-    const cat = cats.find((c) => c.id === it.category_id)?.name ?? "بدون دسته";
     const acc = accs.find((a) => a.id === it.account_id)?.name ?? "؟";
+    const n = items.length > 1 ? `${i + 1}. ` : "";
+    const when = `   تاریخ: ${jDate(it.date + "T12:00:00+03:30")}${it.note ? `\n   یادداشت: ${it.note}` : ""}`;
+    if (it.kind === "transfer") {
+      const to = accs.find((a) => a.id === it.to_account_id)?.name ?? "؟";
+      return `${n}↔ انتقال: ${formatToman(it.amount)}\n   ${acc} ← ${to}\n${when}`;
+    }
+    const cat = cats.find((c) => c.id === it.category_id)?.name ?? "بدون دسته";
     const sign = it.kind === "income" ? "➕ درآمد" : "➖ هزینه";
     return `${items.length > 1 ? `${i + 1}. ` : ""}${sign}: ${formatToman(it.amount)}\n   دسته: ${cat} · حساب: ${acc}\n   تاریخ: ${jDate(it.date + "T12:00:00+03:30")}${it.note ? `\n   یادداشت: ${it.note}` : ""}`;
   });
@@ -189,7 +206,8 @@ async function onCallback(admin: Admin, token: string, link: Link, cq: NonNullab
     return;
   }
   const rows = d.items.map((it, i) => ({
-    user_id: link.user_id, account_id: it.account_id, category_id: it.category_id || null, amount: it.amount, kind: it.kind,
+    user_id: link.user_id, account_id: it.account_id, category_id: it.kind === "transfer" ? null : it.category_id || null,
+    to_account_id: it.kind === "transfer" ? it.to_account_id || null : null, amount: it.amount, kind: it.kind,
     occurred_at: new Date(it.date + "T12:00:00+03:30").toISOString(), note: it.note || null, source: "telegram",
     raw_transcript: it.raw || null, batch_id: d.id, batch_index: i,
   }));
