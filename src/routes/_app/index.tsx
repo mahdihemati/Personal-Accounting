@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionRow } from "@/components/TransactionRow";
 import { TransactionSheet } from "@/components/TransactionSheet";
+import { DailyBudgetCard, ForecastCard, ReviewCategoriesCard } from "@/components/PlanCards";
 import { budgetTone, useAccounts, useBudgetProgress, useCategories, useTotals, useTransactions, type Transaction } from "@/lib/data";
 import { formatToman, formatTomanShort, toFa } from "@/lib/format";
 
@@ -69,6 +70,9 @@ function HomePage() {
         </Button>
       </header>
 
+      <ReviewCategoriesCard />
+      <DailyBudgetCard />
+
       <section className="grid grid-cols-2 gap-3">
         <div className="rounded-3xl bg-card p-5">
           <p className="text-xs text-muted-foreground">درآمد {toFa(format(now, "MMMM"))}</p>
@@ -79,6 +83,8 @@ function HomePage() {
           <p className="mt-2 text-xl font-bold text-expense">{formatTomanShort(expense)}</p>
         </div>
       </section>
+
+      <ForecastCard />
 
       <Link to="/budgets" className="block rounded-3xl bg-card p-5">
         <div className="flex items-center justify-between">
